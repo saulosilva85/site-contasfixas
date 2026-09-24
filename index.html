@@ -1,0 +1,534 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Fixas — controle de despesas</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,400;9..144,600&family=Inter:wght@400;500;600&display=swap" rel="stylesheet">
+<style>
+:root{
+  --ink:#101a14;--paper:#f4f5ef;--panel:#fbfbf7;--line:#d7dccd;
+  --brass:#a8763a;--brass-deep:#8a5f2c;--text:#16211b;--muted:#5c6a5e;--danger:#9c4536;
+  box-sizing:border-box;padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px);
+}
+@media (prefers-color-scheme: dark){:root:not([data-theme="light"]){--paper:#12160f;--panel:#171c14;--line:#2b3327;--text:#e7e9df;--muted:#93a08e;}}
+:root[data-theme="dark"]{--paper:#12160f;--panel:#171c14;--line:#2b3327;--text:#e7e9df;--muted:#93a08e;}
+html{scroll-padding-top:env(safe-area-inset-top,0px);height:100%;}
+*{box-sizing:border-box;}
+body{margin:0;background:var(--paper);color:var(--text);font-family:"Inter",-apple-system,sans-serif;min-height:100%;}
+h1,h2,.serif,.num{font-family:"Fraunces",Georgia,serif;}
+header{padding-top:calc(20px + env(safe-area-inset-top,0px));padding:20px 24px 16px;display:flex;justify-content:space-between;align-items:baseline;border-bottom:1px solid var(--line);}
+header .mark{font-size:22px;letter-spacing:-0.01em;}
+header .mark em{font-style:italic;color:var(--brass);}
+#whoami{font-size:13px;color:var(--muted);display:flex;align-items:center;gap:10px;}
+.profile{position:relative;}
+.profile-btn{background:none;border:none;color:var(--muted);font-size:13px;cursor:pointer;display:flex;align-items:center;gap:6px;font-family:"Inter";padding:4px;}
+.profile-btn:hover{color:var(--text);}
+.profile-menu{position:absolute;right:0;top:calc(100% + 6px);background:var(--panel);border:1px solid var(--line);border-radius:4px;min-width:170px;box-shadow:0 8px 24px rgba(0,0,0,.18);display:none;z-index:30;overflow:hidden;}
+.profile-menu.open{display:block;}
+.profile-menu button{display:block;width:100%;text-align:left;background:none;border:none;padding:11px 14px;font-size:13px;color:var(--text);cursor:pointer;font-family:"Inter";}
+.profile-menu button:hover{background:var(--paper);}
+.profile-menu hr{border:none;border-top:1px solid var(--line);margin:0;}
+.modal-overlay{position:fixed;inset:0;background:rgba(0,0,0,.5);display:flex;align-items:center;justify-content:center;z-index:60;padding:20px;}
+.modal-card{background:var(--panel);border:1px solid var(--line);border-radius:4px;padding:24px;max-width:360px;width:100%;}
+main{max-width:640px;margin:0 auto;padding:28px 20px 60px;}
+.block{margin-bottom:34px;}
+.block h2{font-size:14px;font-weight:400;color:var(--muted);margin:0 0 14px;font-style:italic;}
+.ledger{border-top:1px solid var(--line);}
+.line{display:flex;align-items:center;gap:12px;padding:13px 0;border-bottom:1px solid var(--line);}
+.line .name{flex:1;font-size:15px;}
+.line .curr{color:var(--muted);font-size:13px;font-family:"Inter";}
+.line input.amount{width:92px;padding:6px 2px;border:none;border-bottom:1px solid var(--line);background:transparent;color:var(--text);text-align:right;font-family:"Fraunces",serif;font-size:16px;}
+.line input.amount::placeholder{color:var(--muted);opacity:.6;}
+.line input.amount:focus{outline:none;border-bottom-color:var(--brass);}
+.remove{background:none;border:none;color:var(--muted);font-size:18px;line-height:1;cursor:pointer;padding:2px 4px;}
+.remove:hover{color:var(--danger);}
+.total-line{display:flex;justify-content:space-between;padding:16px 0 0;font-size:19px;}
+.total-line .num{color:var(--brass-deep);}
+.addline{display:flex;gap:10px;margin-top:16px;}
+.addline input{flex:1;padding:10px 4px;border:none;border-bottom:1px solid var(--line);background:transparent;color:var(--text);font-size:14px;}
+.addline input:focus{outline:none;border-bottom-color:var(--brass);}
+button.btn{background:var(--brass);color:#fff8ee;border:none;border-radius:3px;padding:11px 18px;font-size:14px;cursor:pointer;font-family:"Inter";}
+button.btn:hover{background:var(--brass-deep);}
+button.ghost{background:none;border:1px solid var(--line);color:var(--text);border-radius:3px;padding:10px 16px;font-size:13px;cursor:pointer;}
+button.text{background:none;border:none;color:var(--brass-deep);text-decoration:underline;cursor:pointer;font-size:13px;padding:0;}
+input[type=month],input[type=text],input[type=email],input[type=password]{padding:11px;border:1px solid var(--line);border-radius:3px;background:var(--panel);color:var(--text);font-size:14px;width:100%;margin-bottom:12px;font-family:"Inter";}
+.card{background:var(--panel);border:1px solid var(--line);border-radius:4px;padding:26px;}
+.center{text-align:center;}
+.muted{color:var(--muted);font-size:13px;}
+.err{color:var(--danger);font-size:13px;margin:-6px 0 12px;}
+.plan{border:1px solid var(--brass);border-radius:4px;padding:22px;background:var(--panel);}
+.plan .price{font-size:38px;margin:6px 0 2px;}
+.plan .price sup{font-size:16px;font-weight:400;}
+.plan ul{list-style:none;padding:0;margin:16px 0;font-size:14px;color:var(--muted);}
+.plan li{padding:6px 0;border-top:1px solid var(--line);}
+.plan li:before{content:"— ";color:var(--brass);}
+.pay-methods{display:flex;gap:8px;margin:18px 0 14px;}
+.pm-btn{flex:1;background:var(--paper);border:1px solid var(--line);color:var(--muted);border-radius:3px;padding:9px;font-size:13px;cursor:pointer;font-family:"Inter";}
+.pm-btn.active{background:var(--brass);color:#fff8ee;border-color:var(--brass);}
+.pm-panel input{margin-bottom:10px;}
+.pix-box{text-align:center;}
+.pix-qr{width:120px;height:120px;margin:0 auto 12px;background:repeating-linear-gradient(45deg,var(--line) 0 6px,var(--panel) 6px 12px);border:1px solid var(--line);border-radius:4px;display:flex;align-items:center;justify-content:center;font-size:36px;color:var(--muted);}
+.pix-code{font-family:monospace;font-size:11px;color:var(--muted);background:var(--paper);border:1px solid var(--line);border-radius:3px;padding:8px;word-break:break-all;margin-bottom:10px;}
+.chartwrap{overflow-x:auto;-webkit-overflow-scrolling:touch;touch-action:pan-x;}
+svg text{fill:var(--text);font-family:"Inter";}
+.dash-controls{display:flex;gap:20px;flex-wrap:wrap;margin-bottom:18px;}
+.dash-controls label{font-size:12px;color:var(--muted);display:flex;flex-direction:column;gap:4px;}
+.dash-controls input{margin-bottom:0;width:auto;}
+.summary-grid{display:grid;grid-template-columns:repeat(2,1fr);gap:10px;margin-bottom:22px;}
+@media(min-width:480px){.summary-grid{grid-template-columns:repeat(4,1fr);}}
+.sbox{background:var(--panel);border:1px solid var(--line);border-radius:4px;padding:12px;display:flex;flex-direction:column;gap:4px;}
+.slabel{font-size:11px;color:var(--muted);}
+.sval{font-family:"Fraunces",serif;font-size:17px;}
+.sval.up{color:var(--danger);}
+.sval.down{color:#4d8f6e;}
+.cmp-table{width:100%;border-collapse:collapse;font-size:13px;min-width:480px;}
+.cmp-table th{text-align:right;font-weight:500;color:var(--muted);border-bottom:1px solid var(--line);padding:8px 6px;font-size:11px;}
+.cmp-table th:first-child,.cmp-table td:first-child{text-align:left;}
+.cmp-table td{padding:7px 6px;border-bottom:1px solid var(--line);text-align:right;}
+.cmp-table .totrow td{font-weight:600;border-top:1px solid var(--text);border-bottom:none;}
+.cmp-table td.up{color:var(--danger);}
+.cmp-table td.down{color:#4d8f6e;}
+.avatar{width:24px;height:24px;border-radius:50%;background:var(--brass);color:#fff8ee;display:inline-flex;align-items:center;justify-content:center;font-size:11px;overflow:hidden;flex-shrink:0;}
+.avatar img{width:100%;height:100%;object-fit:cover;}
+.avatar-lg{width:76px;height:76px;border-radius:50%;background:var(--brass);color:#fff8ee;display:flex;align-items:center;justify-content:center;font-size:28px;margin:0 auto;overflow:hidden;font-family:"Fraunces",serif;}
+.avatar-lg img{width:100%;height:100%;object-fit:cover;}
+textarea{padding:11px;border:1px solid var(--line);border-radius:3px;background:var(--panel);color:var(--text);font-size:14px;width:100%;margin-bottom:12px;font-family:"Inter";resize:vertical;}
+.months-grid{display:grid;grid-template-columns:repeat(6,1fr);gap:14px 8px;}
+@media(max-width:560px){.months-grid{grid-template-columns:repeat(4,1fr);}}
+@media(max-width:380px){.months-grid{grid-template-columns:repeat(3,1fr);}}
+.month-cell{text-align:center;padding-bottom:8px;border-bottom:2px solid var(--line);}
+.month-cell .mval{font-family:"Fraunces",serif;font-size:13px;display:block;white-space:nowrap;}
+.month-cell .mlbl{font-size:12px;color:var(--muted);margin-top:5px;display:block;}
+.month-cell.hi{border-bottom-color:var(--brass);}
+.month-cell.hi .mval{color:var(--brass-deep);font-weight:600;}
+.month-cell.hi .mlbl{color:var(--brass-deep);font-weight:600;}
+</style>
+</head>
+<body>
+<header><div class="mark">Despesas Fix<em>as</em>.</div><span id="whoami"></span></header>
+<main id="app"></main>
+
+<script>
+function getUsers(){ try{return JSON.parse(localStorage.getItem('fx_users')||'{}');}catch(e){return {};} }
+function saveUsers(u){ try{localStorage.setItem('fx_users', JSON.stringify(u));}catch(e){} }
+function getSession(){ try{return localStorage.getItem('fx_session');}catch(e){return null;} }
+function setSession(email){ try{ email? localStorage.setItem('fx_session', email) : localStorage.removeItem('fx_session'); }catch(e){} }
+
+function monthKey(d){return d.getFullYear()+"-"+String(d.getMonth()+1).padStart(2,"0");}
+function monthLabel(k){const [y,m]=k.split("-");return ["janeiro","fevereiro","março","abril","maio","junho","julho","agosto","setembro","outubro","novembro","dezembro"][m-1]+" de "+y;}
+function shortLabel(k){const [y,m]=k.split("-");return ["Jan","Fev","Mar","Abr","Mai","Jun","Jul","Ago","Set","Out","Nov","Dez"][m-1]+"/"+y.slice(2);}
+function brl(v){return (v||0).toLocaleString("pt-BR",{style:"currency",currency:"BRL"});}
+function parseBRL(s){
+  s = (s||"").toString().trim();
+  if(s==="") return 0;
+  if(s.includes(",")){ s = s.replace(/\./g,"").replace(",","."); }
+  else { s = s.replace(/\./g,""); }
+  const n = parseFloat(s);
+  return isNaN(n) ? 0 : n;
+}
+function formatAmount(v){ return (v||0).toLocaleString("pt-BR",{minimumFractionDigits:2,maximumFractionDigits:2}); }
+
+const DEFAULT_CATS=["Aluguel ou prestação da casa","Condomínio","Água","Energia elétrica","IPTU","Telefone","Internet","Gás de Cozinha","Supermercado","Cartões de Crédito","Plano de saúde","Seguro do veículo","Transporte público","Mensalidade escolar ou faculdade","Farmácia","Academia","Assinaturas"]
+  .map((n,i)=>({id:"c"+i,name:n}));
+
+let curEmail=null, curMonth=monthKey(new Date());
+function app(){ return document.getElementById("app"); }
+function who(html){ document.getElementById("whoami").innerHTML = html; }
+
+function init(){
+  const session=getSession(), users=getUsers();
+  if(session && users[session]){ curEmail=session; renderMain(); }
+  else renderAuth("login");
+}
+
+function renderAuth(mode){
+  who("");
+  app().innerHTML = `<div class="card" style="max-width:400px;margin:20px auto 0">
+    <h2 class="serif" style="font-style:normal;color:var(--text);font-size:20px;margin-top:0;text-align:center">${mode==="login" ? "Entrar na conta" : "Criar conta"}</h2>
+    <div id="authErr" class="err" style="display:none"></div>
+    ${mode==="signup" ? '<input type="text" id="aName" placeholder="Nome">' : ""}
+    <input type="email" id="aEmail" placeholder="E-mail">
+    <input type="password" id="aPass" placeholder="Senha">
+    <button class="btn" id="aSubmit" style="width:100%">${mode==="login" ? "Entrar" : "Cadastrar"}</button>
+    <p class="center muted" style="margin-top:14px">${mode==="login"
+      ? 'Ainda não tem conta? <button class="text" id="toSignup">Cadastre-se</button>'
+      : 'Já tem conta? <button class="text" id="toLogin">Entrar</button>'}</p>
+    <p class="muted center" style="margin-top:18px">Versão de testes — dados salvos apenas neste navegador.</p>
+  </div>`;
+  document.getElementById(mode==="login"?"toSignup":"toLogin").onclick = ()=> renderAuth(mode==="login"?"signup":"login");
+  ["aName","aEmail","aPass"].forEach(id=>{
+    const el=document.getElementById(id);
+    if(el) el.addEventListener("keydown", e=>{ if(e.key==="Enter"){ e.preventDefault(); document.getElementById("aSubmit").click(); } });
+  });
+  document.getElementById("aSubmit").onclick = ()=>{
+    const email=document.getElementById("aEmail").value.trim().toLowerCase();
+    const pass=document.getElementById("aPass").value;
+    const errEl=document.getElementById("authErr");
+    const users=getUsers();
+    if(!email || !pass){ errEl.textContent="Preencha e-mail e senha."; errEl.style.display="block"; return; }
+    if(mode==="signup"){
+      const name=document.getElementById("aName").value.trim();
+      if(users[email]){ errEl.textContent="Já existe uma conta com esse e-mail."; errEl.style.display="block"; return; }
+      users[email] = {name: name||email, password:pass, activated:false, categories:[], monthKeys:[], months:{}};
+      saveUsers(users); setSession(email); curEmail=email; renderMain();
+    } else {
+      if(!users[email] || users[email].password!==pass){ errEl.textContent="E-mail ou senha incorretos."; errEl.style.display="block"; return; }
+      setSession(email); curEmail=email; renderMain();
+    }
+  };
+}
+
+function curUser(){ return getUsers()[curEmail]; }
+function saveCurUser(u){ const users=getUsers(); users[curEmail]=u; saveUsers(users); }
+
+function renderMain(){
+  const u=curUser();
+  renderProfileMenu(u);
+  u.activated ? renderDashboard() : renderPlan();
+}
+
+function renderProfileMenu(u){
+  who(`<div class="profile">
+    <button class="profile-btn" id="profileBtn">
+      <span class="avatar" id="avatarChip">${u.avatar ? `<img src="${u.avatar}">` : (u.name||curEmail).charAt(0).toUpperCase()}</span>
+      ${u.name||curEmail} ▾
+    </button>
+    <div class="profile-menu" id="profileMenu">
+      <button id="openProfile">Perfil</button>
+      <hr>
+      <button id="openChangePass">Alterar senha</button>
+      <hr>
+      <button id="logout">Sair</button>
+      <hr>
+      <button id="openDeleteAccount" style="color:var(--danger)">Excluir conta</button>
+    </div>
+  </div>`);
+  const btn=document.getElementById("profileBtn"), menu=document.getElementById("profileMenu");
+  btn.onclick = (e)=>{ e.stopPropagation(); menu.classList.toggle("open"); };
+  document.getElementById("openProfile").onclick = ()=>{ menu.classList.remove("open"); openProfileModal(); };
+  document.getElementById("logout").onclick = ()=>{ setSession(null); curEmail=null; renderAuth("login"); };
+  document.getElementById("openChangePass").onclick = ()=>{ menu.classList.remove("open"); openChangePasswordModal(); };
+  document.getElementById("openDeleteAccount").onclick = ()=>{ menu.classList.remove("open"); openDeleteAccountModal(); };
+}
+
+function openProfileModal(){
+  const u=curUser();
+  let tempAvatar = u.avatar || null;
+  const overlay=document.createElement("div");
+  overlay.className="modal-overlay";
+  overlay.innerHTML = `<div class="modal-card">
+    <h2 style="font-style:normal;color:var(--text);font-size:18px;margin-top:0;text-align:center">Perfil</h2>
+    <div class="center" style="margin-bottom:16px">
+      <div class="avatar-lg" id="avatarPreview">${tempAvatar ? `<img src="${tempAvatar}">` : (u.name||curEmail).charAt(0).toUpperCase()}</div>
+      <div style="display:flex;gap:8px;justify-content:center;margin-top:10px">
+        <button class="ghost" id="choosePhoto">Alterar foto</button>
+        <button class="ghost" id="removePhoto">Remover foto</button>
+      </div>
+      <input type="file" id="photoInput" accept="image/*" style="display:none">
+    </div>
+    <input type="text" id="pfName" placeholder="Nome" value="${u.name||''}">
+    <input type="text" id="pfPhone" placeholder="Telefone" value="${u.phone||''}">
+    <input type="text" id="pfAddress" placeholder="Endereço" value="${u.address||''}">
+    <textarea id="pfInfo" placeholder="Outras informações" rows="3">${u.info||''}</textarea>
+    <div style="display:flex;gap:10px">
+      <button class="ghost" id="pfCancel" style="flex:1">Cancelar</button>
+      <button class="btn" id="pfSave" style="flex:1">Salvar</button>
+    </div>
+  </div>`;
+  document.body.appendChild(overlay);
+  overlay.onclick = (e)=>{ if(e.target===overlay) overlay.remove(); };
+  document.getElementById("pfCancel").onclick = ()=> overlay.remove();
+  document.getElementById("choosePhoto").onclick = ()=> document.getElementById("photoInput").click();
+  document.getElementById("photoInput").onchange = (e)=>{
+    const file=e.target.files[0]; if(!file) return;
+    const reader=new FileReader();
+    reader.onload = ()=>{ tempAvatar=reader.result; document.getElementById("avatarPreview").innerHTML = `<img src="${tempAvatar}">`; };
+    reader.readAsDataURL(file);
+  };
+  document.getElementById("removePhoto").onclick = ()=>{ tempAvatar=null; document.getElementById("avatarPreview").textContent = (u.name||curEmail).charAt(0).toUpperCase(); };
+  document.getElementById("pfSave").onclick = ()=>{
+    const uu=curUser();
+    uu.avatar=tempAvatar;
+    uu.name=document.getElementById("pfName").value.trim() || uu.name;
+    uu.phone=document.getElementById("pfPhone").value.trim();
+    uu.address=document.getElementById("pfAddress").value.trim();
+    uu.info=document.getElementById("pfInfo").value.trim();
+    saveCurUser(uu);
+    overlay.remove();
+    renderProfileMenu(uu);
+  };
+}
+
+document.addEventListener("click", function(e){
+  const menu=document.getElementById("profileMenu"), btn=document.getElementById("profileBtn");
+  if(menu && menu.classList.contains("open") && !menu.contains(e.target) && e.target!==btn){ menu.classList.remove("open"); }
+});
+
+function openChangePasswordModal(){
+  const overlay=document.createElement("div");
+  overlay.className="modal-overlay";
+  overlay.innerHTML = `<div class="modal-card">
+    <h2 style="font-style:normal;color:var(--text);font-size:18px;margin-top:0">Alterar senha</h2>
+    <div id="pwErr" class="err" style="display:none"></div>
+    <input type="password" id="pwCurrent" placeholder="Senha atual">
+    <input type="password" id="pwNew" placeholder="Nova senha">
+    <input type="password" id="pwConfirm" placeholder="Confirmar nova senha">
+    <div style="display:flex;gap:10px;margin-top:6px">
+      <button class="ghost" id="pwCancel" style="flex:1">Cancelar</button>
+      <button class="btn" id="pwSave" style="flex:1">Salvar</button>
+    </div>
+  </div>`;
+  document.body.appendChild(overlay);
+  overlay.onclick = (e)=>{ if(e.target===overlay) overlay.remove(); };
+  document.getElementById("pwCancel").onclick = ()=> overlay.remove();
+  ["pwCurrent","pwNew","pwConfirm"].forEach(id=> document.getElementById(id).addEventListener("keydown", e=>{ if(e.key==="Enter"){ e.preventDefault(); document.getElementById("pwSave").click(); } }));
+  document.getElementById("pwSave").onclick = ()=>{
+    const cur=document.getElementById("pwCurrent").value;
+    const nw=document.getElementById("pwNew").value;
+    const cf=document.getElementById("pwConfirm").value;
+    const err=document.getElementById("pwErr");
+    const u=curUser();
+    if(cur!==u.password){ err.textContent="Senha atual incorreta."; err.style.display="block"; return; }
+    if(!nw || nw.length<4){ err.textContent="A nova senha deve ter pelo menos 4 caracteres."; err.style.display="block"; return; }
+    if(nw!==cf){ err.textContent="As senhas novas não coincidem."; err.style.display="block"; return; }
+    u.password=nw; saveCurUser(u);
+    overlay.remove();
+  };
+}
+
+function openDeleteAccountModal(){
+  const overlay=document.createElement("div");
+  overlay.className="modal-overlay";
+  overlay.innerHTML = `<div class="modal-card">
+    <h2 style="font-style:normal;color:var(--danger);font-size:18px;margin-top:0">Excluir conta</h2>
+    <p class="muted" style="margin-top:0">Essa ação não pode ser desfeita. Todas as suas despesas e meses salvos serão apagados, e você vai precisar contratar o plano novamente para ter acesso.</p>
+    <div id="delErr" class="err" style="display:none"></div>
+    <input type="password" id="delPass" placeholder="Digite sua senha para confirmar">
+    <div style="display:flex;gap:10px;margin-top:6px">
+      <button class="ghost" id="delCancel" style="flex:1">Cancelar</button>
+      <button class="btn" id="delConfirm" style="flex:1;background:var(--danger)">Excluir conta</button>
+    </div>
+  </div>`;
+  document.body.appendChild(overlay);
+  overlay.onclick = (e)=>{ if(e.target===overlay) overlay.remove(); };
+  document.getElementById("delCancel").onclick = ()=> overlay.remove();
+  document.getElementById("delPass").addEventListener("keydown", e=>{ if(e.key==="Enter"){ e.preventDefault(); document.getElementById("delConfirm").click(); } });
+  document.getElementById("delConfirm").onclick = ()=>{
+    const pass=document.getElementById("delPass").value;
+    const err=document.getElementById("delErr");
+    const u=curUser();
+    if(pass!==u.password){ err.textContent="Senha incorreta."; err.style.display="block"; return; }
+    const users=getUsers();
+    delete users[curEmail];
+    saveUsers(users);
+    setSession(null); curEmail=null;
+    overlay.remove();
+    renderAuth("login");
+  };
+}
+
+function renderPlan(){
+  app().innerHTML = `<div class="plan" style="max-width:420px;margin:10px auto 0">
+    <div class="muted">Plano</div>
+    <div class="price serif">R$15</div>
+    <p class="muted" style="margin-top:-8px">pagamento único</p>
+    <p class="muted" style="margin-top:10px">Controle completo das suas despesas fixas, com cálculo automático e comparativo entre meses.</p>
+    <ul>
+      <li>17 despesas fixas já cadastradas para começar</li>
+      <li>Adicione ou remova despesas quando quiser</li>
+      <li>Total do mês calculado automaticamente</li>
+      <li>Dashboard comparando os meses automaticamente</li>
+    </ul>
+    <div class="pm-panel" id="pmPix">
+      <div class="pix-box">
+        <div class="pix-qr">▦</div>
+        <p class="muted center" style="margin-top:0">Escaneie o QR Code ou copie o código Pix abaixo</p>
+        <div class="pix-code" id="pixCode">00020126580014BR.GOV.BCB.PIX0136fixas-despesas-exemplo520400005303986540515.005802BR5913Despesas Fixas6009SAO PAULO62070503***6304ABCD</div>
+        <button class="ghost" id="copyPix" style="width:100%">Copiar código</button>
+      </div>
+    </div>
+    <button class="btn" id="pay" style="width:100%">Confirmar pagamento</button>
+    <button class="ghost" id="cancelPlan" style="width:100%;margin-top:10px;color:var(--danger);border-color:var(--danger)">Cancelar</button>
+    <p class="muted center" style="margin-top:12px">Pagamento simulado nesta versão de testes.</p>
+  </div>`;
+  const copyBtn=document.getElementById("copyPix");
+  if(copyBtn) copyBtn.onclick = ()=>{
+    const code=document.getElementById("pixCode").textContent;
+    navigator.clipboard && navigator.clipboard.writeText(code).then(()=>{ copyBtn.textContent="Código copiado!"; setTimeout(()=>copyBtn.textContent="Copiar código",1800); }).catch(()=>{});
+  };
+  document.getElementById("pay").onclick = ()=>{
+    const u=curUser();
+    u.activated=true; u.categories=DEFAULT_CATS.map(c=>({...c})); u.monthKeys=[curMonth];
+    const values={}; u.categories.forEach(c=>values[c.id]=0);
+    u.months={}; u.months[curMonth]={values, total:0};
+    saveCurUser(u); renderMain();
+  };
+  document.getElementById("cancelPlan").onclick = ()=> openCancelPlanModal();
+}
+
+function openCancelPlanModal(){
+  const overlay=document.createElement("div");
+  overlay.className="modal-overlay";
+  overlay.innerHTML = `<div class="modal-card">
+    <h2 style="font-style:normal;color:var(--danger);font-size:18px;margin-top:0">Cancelar cadastro</h2>
+    <p class="muted" style="margin-top:0">Tem certeza que deseja cancelar? Sua conta será excluída e você precisará se cadastrar novamente para ter acesso.</p>
+    <div style="display:flex;gap:10px;margin-top:6px">
+      <button class="ghost" id="cancelNo" style="flex:1">Voltar</button>
+      <button class="btn" id="cancelYes" style="flex:1;background:var(--danger)">Sim, cancelar</button>
+    </div>
+  </div>`;
+  document.body.appendChild(overlay);
+  overlay.onclick = (e)=>{ if(e.target===overlay) overlay.remove(); };
+  document.getElementById("cancelNo").onclick = ()=> overlay.remove();
+  document.getElementById("cancelYes").onclick = ()=>{
+    const users=getUsers();
+    delete users[curEmail];
+    saveUsers(users);
+    setSession(null); curEmail=null;
+    overlay.remove();
+    renderAuth("login");
+  };
+}
+
+function renderDashboard(){
+  const u=curUser();
+  app().innerHTML = `
+  <div class="block">
+    <h2>mês em edição</h2>
+    <input type="month" id="monthPick" value="${curMonth}" style="max-width:220px">
+  </div>
+  <div class="block">
+    <h2>despesas de ${monthLabel(curMonth)}</h2>
+    <div class="ledger" id="rows"></div>
+    <div class="total-line"><span>Total</span><span class="num" id="totalVal">R$ 0,00</span></div>
+    <div class="addline">
+      <input type="text" id="newCat" placeholder="Adicionar despesa (ex: Streaming)">
+      <button class="ghost" id="addCat">Adicionar</button>
+    </div>
+    <button class="btn" id="save" style="margin-top:18px;width:100%">Salvar mês</button>
+  </div>
+  <div class="block">
+    <h2>dashboard comparativo</h2>
+    <div class="dash-controls">
+      <label>Mês para análise <input type="month" id="dashAnalysis" value="${curMonth}"></label>
+      <label>Mês de comparação <input type="month" id="dashCompare" value="${shiftMonth(curMonth,-1)}"></label>
+    </div>
+    <div class="summary-grid" id="summaryGrid"></div>
+    <div class="chartwrap"><table class="cmp-table" id="cmpTable"></table></div>
+  </div>
+  <div class="block">
+    <div class="chartwrap" id="chart"></div>
+  </div>`;
+
+  document.getElementById("dashAnalysis").onchange = renderCompDashboard;
+  document.getElementById("dashCompare").onchange = renderCompDashboard;
+
+  document.getElementById("monthPick").onchange = (e)=>{ curMonth=e.target.value; renderDashboard(); };
+  document.getElementById("addCat").onclick = ()=>{
+    const v=document.getElementById("newCat").value.trim();
+    if(!v) return;
+    const uu=curUser(); uu.categories.push({id:"c"+Date.now(), name:v}); saveCurUser(uu); renderDashboard();
+  };
+
+  const monthData = (u.months && u.months[curMonth]) ? u.months[curMonth] : {values:{}};
+  const rows=document.getElementById("rows");
+  rows.innerHTML="";
+  u.categories.forEach(c=>{
+    const div=document.createElement("div"); div.className="line";
+    div.innerHTML = `<span class="name">${c.name}</span>
+      <span class="curr">R$</span>
+      <input class="amount" type="text" inputmode="decimal" placeholder="0,00" data-id="${c.id}" value="${monthData.values[c.id] ? formatAmount(monthData.values[c.id]) : ''}">
+      <button class="remove" data-del="${c.id}" title="Remover">×</button>`;
+    rows.appendChild(div);
+  });
+  function recalcTotal(){
+    let t=0; rows.querySelectorAll("input.amount").forEach(i=>t+=parseBRL(i.value));
+    document.getElementById("totalVal").textContent = brl(t);
+    return t;
+  }
+  rows.querySelectorAll("input.amount").forEach(i=>{
+    i.oninput = recalcTotal;
+    i.onblur = ()=>{ if(i.value.trim()==="") return; i.value = formatAmount(parseBRL(i.value)); };
+    i.onfocus = ()=>{ i.select(); };
+  });
+  rows.querySelectorAll("button[data-del]").forEach(b=> b.onclick = ()=>{
+    const uu=curUser(); uu.categories = uu.categories.filter(c=>c.id!==b.dataset.del); saveCurUser(uu); renderDashboard();
+  });
+  recalcTotal();
+
+  document.getElementById("save").onclick = ()=>{
+    const uu=curUser();
+    const newValues={};
+    rows.querySelectorAll("input.amount").forEach(i=> newValues[i.dataset.id]=parseBRL(i.value));
+    const total=recalcTotal();
+    uu.months = uu.months || {};
+    uu.months[curMonth] = {values:newValues, total};
+    if(!uu.monthKeys.includes(curMonth)){ uu.monthKeys.push(curMonth); uu.monthKeys.sort(); }
+    saveCurUser(uu);
+    renderCompDashboard();
+  };
+  renderCompDashboard();
+}
+
+function shiftMonth(k,delta){ let [y,m]=k.split("-").map(Number); m+=delta; while(m<1){m+=12;y--;} while(m>12){m-=12;y++;} return y+"-"+String(m).padStart(2,"0"); }
+
+function renderCompDashboard(){
+  const u=curUser();
+  const aKey=document.getElementById("dashAnalysis").value;
+  const cKey=document.getElementById("dashCompare").value;
+  const aData=(u.months&&u.months[aKey])?u.months[aKey]:{values:{},total:0};
+  const cData=(u.months&&u.months[cKey])?u.months[cKey]:{values:{},total:0};
+  const aTotal=aData.total||0, cTotal=cData.total||0;
+  const diff=aTotal-cTotal, diffPct = cTotal ? (diff/cTotal*100) : (aTotal>0?100:0);
+  const cls = diff>0?"up":diff<0?"down":"";
+
+  document.getElementById("summaryGrid").innerHTML = `
+    <div class="sbox"><span class="slabel">Mês analisado</span><span class="sval">${brl(aTotal)}</span></div>
+    <div class="sbox"><span class="slabel">Mês de comparação</span><span class="sval">${brl(cTotal)}</span></div>
+    <div class="sbox"><span class="slabel">Variação (R$)</span><span class="sval ${cls}">${brl(diff)}</span></div>
+    <div class="sbox"><span class="slabel">Variação (%)</span><span class="sval ${cls}">${diffPct.toFixed(1)}%</span></div>`;
+
+  let rows="";
+  u.categories.forEach(c=>{
+    const av=aData.values[c.id]||0, cv=cData.values[c.id]||0, d=av-cv, dp=cv?(d/cv*100):(av>0?100:0), rc=d>0?"up":d<0?"down":"";
+    rows += `<tr><td>${c.name}</td><td>${brl(av)}</td><td>${brl(cv)}</td><td class="${rc}">${brl(d)}</td><td class="${rc}">${dp.toFixed(1)}%</td></tr>`;
+  });
+  rows += `<tr class="totrow"><td>Total</td><td>${brl(aTotal)}</td><td>${brl(cTotal)}</td><td class="${cls}">${brl(diff)}</td><td class="${cls}">${diffPct.toFixed(1)}%</td></tr>`;
+  document.getElementById("cmpTable").innerHTML = `<thead><tr><th>Categoria</th><th>Análise</th><th>Comparação</th><th>Var. R$</th><th>Var. %</th></tr></thead><tbody>${rows}</tbody>`;
+
+  drawMonthsChart(u, aKey, cKey);
+}
+
+function pad2(m){ return String(m).padStart(2,"0"); }
+const MONTH_ABBR=["Jan","Fev","Mar","Abr","Mai","Jun","Jul","Ago","Set","Out","Nov","Dez"];
+
+function drawMonthsChart(u, aKey, cKey){
+  const chart=document.getElementById("chart");
+  if(!chart) return;
+  const year = (aKey||curMonth).split("-")[0];
+  const keys = MONTH_ABBR.map((_,i)=> year+"-"+pad2(i+1));
+  const totals = keys.map(k=>(u.months&&u.months[k]&&u.months[k].total)||0);
+  const max=Math.max(...totals,1);
+  const w=keys.length*90, h=200, barW=46;
+  let bars="";
+  keys.forEach((k,i)=>{
+    const bh=Math.round((totals[i]/max)*140);
+    const x=32+i*90;
+    const hi = (k===aKey || k===cKey);
+    const fill = hi ? "var(--brass)" : "var(--muted)";
+    const op = hi ? "1" : "0.4";
+    bars += `<rect x="${x}" y="${160-bh}" width="${barW}" height="${Math.max(bh,1)}" fill="${fill}" opacity="${op}"/>
+      <text x="${x+barW/2}" y="176" font-size="11" text-anchor="middle" opacity="${hi?1:0.6}">${MONTH_ABBR[i]}</text>
+      <text x="${x+barW/2}" y="${152-bh}" font-size="11" text-anchor="middle" opacity="${hi?1:0.6}">${brl(totals[i])}</text>`;
+  });
+  chart.className = "chartwrap";
+  chart.innerHTML = `<svg viewBox="0 0 ${w} ${h}" width="${w}" height="${h}">${bars}</svg>`;
+}
+
+init();
+</script>
+</body>
+</html>
