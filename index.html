@@ -363,7 +363,7 @@ function openDeleteAccountModal(){
     const { error: reauthErr } = await supa.auth.signInWithPassword({ email:authUser.email, password:pass });
     if(reauthErr){ err.textContent="Senha incorreta."; err.style.display="block"; return; }
     const { error: fnErr } = await supa.functions.invoke("delete-account");
-    if(fnErr){ err.textContent="Não foi possível excluir a conta agora. Tente novamente em alguns instantes."; err.style.display="block"; return; }
+    if(fnErr){ err.textContent="Erro: "+(fnErr.message||"não foi possível excluir a conta."); err.style.display="block"; return; }
     await supa.auth.signOut();
     authUser=null; profile=null;
     overlay.remove();
