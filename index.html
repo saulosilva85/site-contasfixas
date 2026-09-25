@@ -118,6 +118,7 @@ function parseBRL(s){
 }
 function formatAmount(v){ return (v||0).toLocaleString("pt-BR",{minimumFractionDigits:2,maximumFractionDigits:2}); }
 function shiftMonth(k,delta){ let [y,m]=k.split("-").map(Number); m+=delta; while(m<1){m+=12;y--;} while(m>12){m-=12;y++;} return y+"-"+String(m).padStart(2,"0"); }
+function firstName(n){ n=(n||"").trim(); return n ? n.split(/\s+/)[0] : n; }
 
 const DEFAULT_CATS=["Aluguel ou prestação da casa","Condomínio","Água","Energia elétrica","IPTU","Telefone","Internet","Gás de Cozinha","Supermercado","Cartões de Crédito","Plano de saúde","Seguro do veículo","Transporte público","Mensalidade escolar ou faculdade","Farmácia","Academia","Assinaturas"];
 
@@ -222,7 +223,7 @@ function renderCheckEmail(email){
 }
 
 function renderProfileMenu(u){
-  const displayName = (u && u.name) || (authUser && authUser.email) || "";
+  const displayName = firstName((u && u.name) || (authUser && authUser.email) || "");
   const avatar = u && u.avatar_url;
   who(`<div class="profile">
     <button class="profile-btn" id="profileBtn">
