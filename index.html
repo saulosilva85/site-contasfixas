@@ -3,10 +3,11 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
-<title>Fixas — controle de despesas</title>
+<title>Despesas Fixas</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,400;9..144,600&family=Inter:wght@400;500;600&display=swap" rel="stylesheet">
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.js"></script>
 <style>
 :root{
   --ink:#101a14;--paper:#f4f5ef;--panel:#fbfbf7;--line:#d7dccd;
@@ -52,6 +53,7 @@ main{max-width:640px;margin:0 auto;padding:28px 20px 60px;}
 .addline input:focus{outline:none;border-bottom-color:var(--brass);}
 button.btn{background:var(--brass);color:#fff8ee;border:none;border-radius:3px;padding:11px 18px;font-size:14px;cursor:pointer;font-family:"Inter";}
 button.btn:hover{background:var(--brass-deep);}
+button.btn:disabled{opacity:.6;cursor:default;}
 button.ghost{background:none;border:1px solid var(--line);color:var(--text);border-radius:3px;padding:10px 16px;font-size:13px;cursor:pointer;}
 button.text{background:none;border:none;color:var(--brass-deep);text-decoration:underline;cursor:pointer;font-size:13px;padding:0;}
 input[type=month],input[type=text],input[type=email],input[type=password]{padding:11px;border:1px solid var(--line);border-radius:3px;background:var(--panel);color:var(--text);font-size:14px;width:100%;margin-bottom:12px;font-family:"Inter";}
@@ -61,14 +63,9 @@ input[type=month],input[type=text],input[type=email],input[type=password]{paddin
 .err{color:var(--danger);font-size:13px;margin:-6px 0 12px;}
 .plan{border:1px solid var(--brass);border-radius:4px;padding:22px;background:var(--panel);}
 .plan .price{font-size:38px;margin:6px 0 2px;}
-.plan .price sup{font-size:16px;font-weight:400;}
 .plan ul{list-style:none;padding:0;margin:16px 0;font-size:14px;color:var(--muted);}
 .plan li{padding:6px 0;border-top:1px solid var(--line);}
 .plan li:before{content:"— ";color:var(--brass);}
-.pay-methods{display:flex;gap:8px;margin:18px 0 14px;}
-.pm-btn{flex:1;background:var(--paper);border:1px solid var(--line);color:var(--muted);border-radius:3px;padding:9px;font-size:13px;cursor:pointer;font-family:"Inter";}
-.pm-btn.active{background:var(--brass);color:#fff8ee;border-color:var(--brass);}
-.pm-panel input{margin-bottom:10px;}
 .pix-box{text-align:center;}
 .pix-qr{width:120px;height:120px;margin:0 auto 12px;background:repeating-linear-gradient(45deg,var(--line) 0 6px,var(--panel) 6px 12px);border:1px solid var(--line);border-radius:4px;display:flex;align-items:center;justify-content:center;font-size:36px;color:var(--muted);}
 .pix-code{font-family:monospace;font-size:11px;color:var(--muted);background:var(--paper);border:1px solid var(--line);border-radius:3px;padding:8px;word-break:break-all;margin-bottom:10px;}
@@ -96,52 +93,69 @@ svg text{fill:var(--text);font-family:"Inter";}
 .avatar-lg{width:76px;height:76px;border-radius:50%;background:var(--brass);color:#fff8ee;display:flex;align-items:center;justify-content:center;font-size:28px;margin:0 auto;overflow:hidden;font-family:"Fraunces",serif;}
 .avatar-lg img{width:100%;height:100%;object-fit:cover;}
 textarea{padding:11px;border:1px solid var(--line);border-radius:3px;background:var(--panel);color:var(--text);font-size:14px;width:100%;margin-bottom:12px;font-family:"Inter";resize:vertical;}
-.months-grid{display:grid;grid-template-columns:repeat(6,1fr);gap:14px 8px;}
-@media(max-width:560px){.months-grid{grid-template-columns:repeat(4,1fr);}}
-@media(max-width:380px){.months-grid{grid-template-columns:repeat(3,1fr);}}
-.month-cell{text-align:center;padding-bottom:8px;border-bottom:2px solid var(--line);}
-.month-cell .mval{font-family:"Fraunces",serif;font-size:13px;display:block;white-space:nowrap;}
-.month-cell .mlbl{font-size:12px;color:var(--muted);margin-top:5px;display:block;}
-.month-cell.hi{border-bottom-color:var(--brass);}
-.month-cell.hi .mval{color:var(--brass-deep);font-weight:600;}
-.month-cell.hi .mlbl{color:var(--brass-deep);font-weight:600;}
 </style>
 </head>
 <body>
 <header><div class="mark">Despesas Fix<em>as</em>.</div><span id="whoami"></span></header>
-<main id="app"></main>
+<main id="app"><div class="center muted">Carregando...</div></main>
 
 <script>
-function getUsers(){ try{return JSON.parse(localStorage.getItem('fx_users')||'{}');}catch(e){return {};} }
-function saveUsers(u){ try{localStorage.setItem('fx_users', JSON.stringify(u));}catch(e){} }
-function getSession(){ try{return localStorage.getItem('fx_session');}catch(e){return null;} }
-function setSession(email){ try{ email? localStorage.setItem('fx_session', email) : localStorage.removeItem('fx_session'); }catch(e){} }
+const supa = window.supabase.createClient(
+  "https://mgkglowkopnpmemflsuy.supabase.co",
+  "sb_publishable_Rq4XYqs_-7SRpBsbgQOBdg_zaWCP1cs"
+);
 
 function monthKey(d){return d.getFullYear()+"-"+String(d.getMonth()+1).padStart(2,"0");}
 function monthLabel(k){const [y,m]=k.split("-");return ["janeiro","fevereiro","março","abril","maio","junho","julho","agosto","setembro","outubro","novembro","dezembro"][m-1]+" de "+y;}
-function shortLabel(k){const [y,m]=k.split("-");return ["Jan","Fev","Mar","Abr","Mai","Jun","Jul","Ago","Set","Out","Nov","Dez"][m-1]+"/"+y.slice(2);}
+function pad2(m){return String(m).padStart(2,"0");}
+const MONTH_ABBR=["Jan","Fev","Mar","Abr","Mai","Jun","Jul","Ago","Set","Out","Nov","Dez"];
 function brl(v){return (v||0).toLocaleString("pt-BR",{style:"currency",currency:"BRL"});}
 function parseBRL(s){
-  s = (s||"").toString().trim();
+  s=(s||"").toString().trim();
   if(s==="") return 0;
-  if(s.includes(",")){ s = s.replace(/\./g,"").replace(",","."); }
-  else { s = s.replace(/\./g,""); }
-  const n = parseFloat(s);
-  return isNaN(n) ? 0 : n;
+  if(s.includes(",")){ s=s.replace(/\./g,"").replace(",","."); } else { s=s.replace(/\./g,""); }
+  const n=parseFloat(s); return isNaN(n)?0:n;
 }
 function formatAmount(v){ return (v||0).toLocaleString("pt-BR",{minimumFractionDigits:2,maximumFractionDigits:2}); }
+function shiftMonth(k,delta){ let [y,m]=k.split("-").map(Number); m+=delta; while(m<1){m+=12;y--;} while(m>12){m-=12;y++;} return y+"-"+String(m).padStart(2,"0"); }
 
-const DEFAULT_CATS=["Aluguel ou prestação da casa","Condomínio","Água","Energia elétrica","IPTU","Telefone","Internet","Gás de Cozinha","Supermercado","Cartões de Crédito","Plano de saúde","Seguro do veículo","Transporte público","Mensalidade escolar ou faculdade","Farmácia","Academia","Assinaturas"]
-  .map((n,i)=>({id:"c"+i,name:n}));
+const DEFAULT_CATS=["Aluguel ou prestação da casa","Condomínio","Água","Energia elétrica","IPTU","Telefone","Internet","Gás de Cozinha","Supermercado","Cartões de Crédito","Plano de saúde","Seguro do veículo","Transporte público","Mensalidade escolar ou faculdade","Farmácia","Academia","Assinaturas"];
 
-let curEmail=null, curMonth=monthKey(new Date());
+let authUser=null, profile=null, categories=[], entries=[], curMonth=monthKey(new Date());
 function app(){ return document.getElementById("app"); }
 function who(html){ document.getElementById("whoami").innerHTML = html; }
+function entriesForMonth(k){ const m={}; entries.filter(e=>e.month_key===k).forEach(e=> m[e.category_id]=Number(e.amount)); return m; }
+function totalForMonth(k){ return entries.filter(e=>e.month_key===k).reduce((s,e)=>s+Number(e.amount),0); }
 
-function init(){
-  const session=getSession(), users=getUsers();
-  if(session && users[session]){ curEmail=session; renderMain(); }
+async function init(){
+  const { data } = await supa.auth.getSession();
+  if(data.session){ authUser=data.session.user; await afterLogin(); }
   else renderAuth("login");
+}
+
+async function afterLogin(){
+  const { data: prof } = await supa.from("profiles").select("*").eq("id",authUser.id).maybeSingle();
+  profile = prof;
+  renderProfileMenu(profile);
+  if(profile && profile.activated){ await loadData(); renderDashboard(); }
+  else renderPlan();
+}
+
+async function loadData(){
+  const [{data:cats},{data:ents}] = await Promise.all([
+    supa.from("categories").select("*").eq("user_id",authUser.id).order("created_at"),
+    supa.from("month_entries").select("month_key,category_id,amount").eq("user_id",authUser.id)
+  ]);
+  categories = cats||[]; entries = ents||[];
+}
+
+function translateAuthError(msg){
+  if(!msg) return "Ocorreu um erro. Tente novamente.";
+  if(msg.includes("already registered")) return "Já existe uma conta com esse e-mail.";
+  if(msg.includes("Invalid login credentials")) return "E-mail ou senha incorretos.";
+  if(msg.includes("Email not confirmed")) return "Confirme seu e-mail antes de entrar (verifique sua caixa de entrada).";
+  if(msg.includes("Password should be at least")) return "A senha deve ter pelo menos 6 caracteres.";
+  return msg;
 }
 
 function renderAuth(mode){
@@ -156,45 +170,64 @@ function renderAuth(mode){
     <p class="center muted" style="margin-top:14px">${mode==="login"
       ? 'Ainda não tem conta? <button class="text" id="toSignup">Cadastre-se</button>'
       : 'Já tem conta? <button class="text" id="toLogin">Entrar</button>'}</p>
-    <p class="muted center" style="margin-top:18px">Versão de testes — dados salvos apenas neste navegador.</p>
   </div>`;
   document.getElementById(mode==="login"?"toSignup":"toLogin").onclick = ()=> renderAuth(mode==="login"?"signup":"login");
   ["aName","aEmail","aPass"].forEach(id=>{
     const el=document.getElementById(id);
     if(el) el.addEventListener("keydown", e=>{ if(e.key==="Enter"){ e.preventDefault(); document.getElementById("aSubmit").click(); } });
   });
-  document.getElementById("aSubmit").onclick = ()=>{
+  document.getElementById("aSubmit").onclick = async ()=>{
+    const btn=document.getElementById("aSubmit");
     const email=document.getElementById("aEmail").value.trim().toLowerCase();
     const pass=document.getElementById("aPass").value;
     const errEl=document.getElementById("authErr");
-    const users=getUsers();
+    errEl.style.display="none";
     if(!email || !pass){ errEl.textContent="Preencha e-mail e senha."; errEl.style.display="block"; return; }
+    btn.disabled=true;
     if(mode==="signup"){
       const name=document.getElementById("aName").value.trim();
-      if(users[email]){ errEl.textContent="Já existe uma conta com esse e-mail."; errEl.style.display="block"; return; }
-      users[email] = {name: name||email, password:pass, activated:false, categories:[], monthKeys:[], months:{}};
-      saveUsers(users); setSession(email); curEmail=email; renderMain();
+      const { error } = await supa.auth.signUp({ email, password:pass, options:{ data:{ name }, emailRedirectTo: window.location.origin + window.location.pathname } });
+      btn.disabled=false;
+      if(error){ errEl.textContent=translateAuthError(error.message); errEl.style.display="block"; return; }
+      renderCheckEmail(email);
     } else {
-      if(!users[email] || users[email].password!==pass){ errEl.textContent="E-mail ou senha incorretos."; errEl.style.display="block"; return; }
-      setSession(email); curEmail=email; renderMain();
+      const { data, error } = await supa.auth.signInWithPassword({ email, password:pass });
+      btn.disabled=false;
+      if(error){ errEl.textContent=translateAuthError(error.message); errEl.style.display="block"; return; }
+      authUser = data.user;
+      await afterLogin();
     }
   };
 }
 
-function curUser(){ return getUsers()[curEmail]; }
-function saveCurUser(u){ const users=getUsers(); users[curEmail]=u; saveUsers(users); }
-
-function renderMain(){
-  const u=curUser();
-  renderProfileMenu(u);
-  u.activated ? renderDashboard() : renderPlan();
+function renderCheckEmail(email){
+  who("");
+  app().innerHTML = `<div class="card center" style="max-width:400px;margin:20px auto 0">
+    <h2 style="font-style:normal;color:var(--text);font-size:19px;margin-top:0">Confirme seu e-mail</h2>
+    <p class="muted">Enviamos um link de confirmação para <strong>${email}</strong>. Clique no link e depois volte aqui para entrar.</p>
+    <p class="muted" style="margin-top:-4px">Não chegou? Confira a caixa de spam antes de reenviar.</p>
+    <div id="resendMsg" class="muted" style="display:none;color:var(--brass-deep)"></div>
+    <button class="ghost" id="resendEmail" style="width:100%;margin-top:6px">Reenviar e-mail de confirmação</button>
+    <button class="btn" id="backToLogin" style="width:100%;margin-top:10px">Ir para o login</button>
+  </div>`;
+  document.getElementById("backToLogin").onclick = ()=> renderAuth("login");
+  document.getElementById("resendEmail").onclick = async ()=>{
+    const btn=document.getElementById("resendEmail"); btn.disabled=true;
+    const msg=document.getElementById("resendMsg");
+    const { error } = await supa.auth.resend({ type:"signup", email, options:{ emailRedirectTo: window.location.origin + window.location.pathname } });
+    msg.style.display="block";
+    msg.textContent = error ? translateAuthError(error.message) : "E-mail reenviado! Confira sua caixa de entrada (e o spam).";
+    btn.disabled=false;
+  };
 }
 
 function renderProfileMenu(u){
+  const displayName = (u && u.name) || (authUser && authUser.email) || "";
+  const avatar = u && u.avatar_url;
   who(`<div class="profile">
     <button class="profile-btn" id="profileBtn">
-      <span class="avatar" id="avatarChip">${u.avatar ? `<img src="${u.avatar}">` : (u.name||curEmail).charAt(0).toUpperCase()}</span>
-      ${u.name||curEmail} ▾
+      <span class="avatar" id="avatarChip">${avatar ? `<img src="${avatar}">` : displayName.charAt(0).toUpperCase()}</span>
+      ${displayName} ▾
     </button>
     <div class="profile-menu" id="profileMenu">
       <button id="openProfile">Perfil</button>
@@ -209,20 +242,25 @@ function renderProfileMenu(u){
   const btn=document.getElementById("profileBtn"), menu=document.getElementById("profileMenu");
   btn.onclick = (e)=>{ e.stopPropagation(); menu.classList.toggle("open"); };
   document.getElementById("openProfile").onclick = ()=>{ menu.classList.remove("open"); openProfileModal(); };
-  document.getElementById("logout").onclick = ()=>{ setSession(null); curEmail=null; renderAuth("login"); };
+  document.getElementById("logout").onclick = async ()=>{ await supa.auth.signOut(); authUser=null; profile=null; renderAuth("login"); };
   document.getElementById("openChangePass").onclick = ()=>{ menu.classList.remove("open"); openChangePasswordModal(); };
   document.getElementById("openDeleteAccount").onclick = ()=>{ menu.classList.remove("open"); openDeleteAccountModal(); };
 }
 
+document.addEventListener("click", function(e){
+  const menu=document.getElementById("profileMenu"), btn=document.getElementById("profileBtn");
+  if(menu && menu.classList.contains("open") && !menu.contains(e.target) && e.target!==btn){ menu.classList.remove("open"); }
+});
+
 function openProfileModal(){
-  const u=curUser();
-  let tempAvatar = u.avatar || null;
+  const u=profile||{};
+  let tempAvatar = u.avatar_url || null;
   const overlay=document.createElement("div");
   overlay.className="modal-overlay";
   overlay.innerHTML = `<div class="modal-card">
     <h2 style="font-style:normal;color:var(--text);font-size:18px;margin-top:0;text-align:center">Perfil</h2>
     <div class="center" style="margin-bottom:16px">
-      <div class="avatar-lg" id="avatarPreview">${tempAvatar ? `<img src="${tempAvatar}">` : (u.name||curEmail).charAt(0).toUpperCase()}</div>
+      <div class="avatar-lg" id="avatarPreview">${tempAvatar ? `<img src="${tempAvatar}">` : (u.name||authUser.email).charAt(0).toUpperCase()}</div>
       <div style="display:flex;gap:8px;justify-content:center;margin-top:10px">
         <button class="ghost" id="choosePhoto">Alterar foto</button>
         <button class="ghost" id="removePhoto">Remover foto</button>
@@ -248,24 +286,23 @@ function openProfileModal(){
     reader.onload = ()=>{ tempAvatar=reader.result; document.getElementById("avatarPreview").innerHTML = `<img src="${tempAvatar}">`; };
     reader.readAsDataURL(file);
   };
-  document.getElementById("removePhoto").onclick = ()=>{ tempAvatar=null; document.getElementById("avatarPreview").textContent = (u.name||curEmail).charAt(0).toUpperCase(); };
-  document.getElementById("pfSave").onclick = ()=>{
-    const uu=curUser();
-    uu.avatar=tempAvatar;
-    uu.name=document.getElementById("pfName").value.trim() || uu.name;
-    uu.phone=document.getElementById("pfPhone").value.trim();
-    uu.address=document.getElementById("pfAddress").value.trim();
-    uu.info=document.getElementById("pfInfo").value.trim();
-    saveCurUser(uu);
+  document.getElementById("removePhoto").onclick = ()=>{ tempAvatar=null; document.getElementById("avatarPreview").textContent = (u.name||authUser.email).charAt(0).toUpperCase(); };
+  document.getElementById("pfSave").onclick = async ()=>{
+    const updates = {
+      id: authUser.id,
+      activated: (profile && profile.activated) || false,
+      name: document.getElementById("pfName").value.trim() || u.name || authUser.email,
+      phone: document.getElementById("pfPhone").value.trim(),
+      address: document.getElementById("pfAddress").value.trim(),
+      info: document.getElementById("pfInfo").value.trim(),
+      avatar_url: tempAvatar
+    };
+    const { data } = await supa.from("profiles").upsert(updates).select().single();
+    profile = data;
     overlay.remove();
-    renderProfileMenu(uu);
+    renderProfileMenu(profile);
   };
 }
-
-document.addEventListener("click", function(e){
-  const menu=document.getElementById("profileMenu"), btn=document.getElementById("profileBtn");
-  if(menu && menu.classList.contains("open") && !menu.contains(e.target) && e.target!==btn){ menu.classList.remove("open"); }
-});
 
 function openChangePasswordModal(){
   const overlay=document.createElement("div");
@@ -285,16 +322,18 @@ function openChangePasswordModal(){
   overlay.onclick = (e)=>{ if(e.target===overlay) overlay.remove(); };
   document.getElementById("pwCancel").onclick = ()=> overlay.remove();
   ["pwCurrent","pwNew","pwConfirm"].forEach(id=> document.getElementById(id).addEventListener("keydown", e=>{ if(e.key==="Enter"){ e.preventDefault(); document.getElementById("pwSave").click(); } }));
-  document.getElementById("pwSave").onclick = ()=>{
+  document.getElementById("pwSave").onclick = async ()=>{
     const cur=document.getElementById("pwCurrent").value;
     const nw=document.getElementById("pwNew").value;
     const cf=document.getElementById("pwConfirm").value;
     const err=document.getElementById("pwErr");
-    const u=curUser();
-    if(cur!==u.password){ err.textContent="Senha atual incorreta."; err.style.display="block"; return; }
-    if(!nw || nw.length<4){ err.textContent="A nova senha deve ter pelo menos 4 caracteres."; err.style.display="block"; return; }
+    err.style.display="none";
+    if(nw.length<6){ err.textContent="A nova senha deve ter pelo menos 6 caracteres."; err.style.display="block"; return; }
     if(nw!==cf){ err.textContent="As senhas novas não coincidem."; err.style.display="block"; return; }
-    u.password=nw; saveCurUser(u);
+    const { error: reauthErr } = await supa.auth.signInWithPassword({ email:authUser.email, password:cur });
+    if(reauthErr){ err.textContent="Senha atual incorreta."; err.style.display="block"; return; }
+    const { error } = await supa.auth.updateUser({ password:nw });
+    if(error){ err.textContent=translateAuthError(error.message); err.style.display="block"; return; }
     overlay.remove();
   };
 }
@@ -316,15 +355,16 @@ function openDeleteAccountModal(){
   overlay.onclick = (e)=>{ if(e.target===overlay) overlay.remove(); };
   document.getElementById("delCancel").onclick = ()=> overlay.remove();
   document.getElementById("delPass").addEventListener("keydown", e=>{ if(e.key==="Enter"){ e.preventDefault(); document.getElementById("delConfirm").click(); } });
-  document.getElementById("delConfirm").onclick = ()=>{
+  document.getElementById("delConfirm").onclick = async ()=>{
     const pass=document.getElementById("delPass").value;
     const err=document.getElementById("delErr");
-    const u=curUser();
-    if(pass!==u.password){ err.textContent="Senha incorreta."; err.style.display="block"; return; }
-    const users=getUsers();
-    delete users[curEmail];
-    saveUsers(users);
-    setSession(null); curEmail=null;
+    err.style.display="none";
+    const { error: reauthErr } = await supa.auth.signInWithPassword({ email:authUser.email, password:pass });
+    if(reauthErr){ err.textContent="Senha incorreta."; err.style.display="block"; return; }
+    await supa.from("categories").delete().eq("user_id",authUser.id);
+    await supa.from("profiles").delete().eq("id",authUser.id);
+    await supa.auth.signOut();
+    authUser=null; profile=null;
     overlay.remove();
     renderAuth("login");
   };
@@ -342,29 +382,30 @@ function renderPlan(){
       <li>Total do mês calculado automaticamente</li>
       <li>Dashboard comparando os meses automaticamente</li>
     </ul>
-    <div class="pm-panel" id="pmPix">
-      <div class="pix-box">
-        <div class="pix-qr">▦</div>
-        <p class="muted center" style="margin-top:0">Escaneie o QR Code ou copie o código Pix abaixo</p>
-        <div class="pix-code" id="pixCode">00020126580014BR.GOV.BCB.PIX0136fixas-despesas-exemplo520400005303986540515.005802BR5913Despesas Fixas6009SAO PAULO62070503***6304ABCD</div>
-        <button class="ghost" id="copyPix" style="width:100%">Copiar código</button>
-      </div>
+    <div class="pix-box">
+      <div class="pix-qr">▦</div>
+      <p class="muted center" style="margin-top:0">Escaneie o QR Code ou copie o código Pix abaixo</p>
+      <div class="pix-code" id="pixCode">00020126580014BR.GOV.BCB.PIX0136fixas-despesas-exemplo520400005303986540515.005802BR5913Despesas Fixas6009SAO PAULO62070503***6304ABCD</div>
+      <button class="ghost" id="copyPix" style="width:100%">Copiar código</button>
     </div>
-    <button class="btn" id="pay" style="width:100%">Confirmar pagamento</button>
+    <button class="btn" id="pay" style="width:100%;margin-top:14px">Confirmar pagamento</button>
     <button class="ghost" id="cancelPlan" style="width:100%;margin-top:10px;color:var(--danger);border-color:var(--danger)">Cancelar</button>
     <p class="muted center" style="margin-top:12px">Pagamento simulado nesta versão de testes.</p>
   </div>`;
   const copyBtn=document.getElementById("copyPix");
-  if(copyBtn) copyBtn.onclick = ()=>{
+  copyBtn.onclick = ()=>{
     const code=document.getElementById("pixCode").textContent;
     navigator.clipboard && navigator.clipboard.writeText(code).then(()=>{ copyBtn.textContent="Código copiado!"; setTimeout(()=>copyBtn.textContent="Copiar código",1800); }).catch(()=>{});
   };
-  document.getElementById("pay").onclick = ()=>{
-    const u=curUser();
-    u.activated=true; u.categories=DEFAULT_CATS.map(c=>({...c})); u.monthKeys=[curMonth];
-    const values={}; u.categories.forEach(c=>values[c.id]=0);
-    u.months={}; u.months[curMonth]={values, total:0};
-    saveCurUser(u); renderMain();
+  document.getElementById("pay").onclick = async ()=>{
+    const btn=document.getElementById("pay"); btn.disabled=true;
+    const name = (profile && profile.name) || authUser.email.split("@")[0];
+    const { data } = await supa.from("profiles").upsert({ id:authUser.id, name, activated:true }).select().single();
+    profile = data;
+    await supa.from("categories").insert(DEFAULT_CATS.map(n=>({ user_id:authUser.id, name:n })));
+    await loadData();
+    renderProfileMenu(profile);
+    renderDashboard();
   };
   document.getElementById("cancelPlan").onclick = ()=> openCancelPlanModal();
 }
@@ -374,7 +415,7 @@ function openCancelPlanModal(){
   overlay.className="modal-overlay";
   overlay.innerHTML = `<div class="modal-card">
     <h2 style="font-style:normal;color:var(--danger);font-size:18px;margin-top:0">Cancelar cadastro</h2>
-    <p class="muted" style="margin-top:0">Tem certeza que deseja cancelar? Sua conta será excluída e você precisará se cadastrar novamente para ter acesso.</p>
+    <p class="muted" style="margin-top:0">Tem certeza que deseja cancelar? Você será desconectado e vai precisar entrar de novo para contratar o plano quando quiser.</p>
     <div style="display:flex;gap:10px;margin-top:6px">
       <button class="ghost" id="cancelNo" style="flex:1">Voltar</button>
       <button class="btn" id="cancelYes" style="flex:1;background:var(--danger)">Sim, cancelar</button>
@@ -383,18 +424,15 @@ function openCancelPlanModal(){
   document.body.appendChild(overlay);
   overlay.onclick = (e)=>{ if(e.target===overlay) overlay.remove(); };
   document.getElementById("cancelNo").onclick = ()=> overlay.remove();
-  document.getElementById("cancelYes").onclick = ()=>{
-    const users=getUsers();
-    delete users[curEmail];
-    saveUsers(users);
-    setSession(null); curEmail=null;
+  document.getElementById("cancelYes").onclick = async ()=>{
+    await supa.auth.signOut();
+    authUser=null; profile=null;
     overlay.remove();
     renderAuth("login");
   };
 }
 
-function renderDashboard(){
-  const u=curUser();
+async function renderDashboard(){
   app().innerHTML = `
   <div class="block">
     <h2>mês em edição</h2>
@@ -425,22 +463,23 @@ function renderDashboard(){
 
   document.getElementById("dashAnalysis").onchange = renderCompDashboard;
   document.getElementById("dashCompare").onchange = renderCompDashboard;
-
-  document.getElementById("monthPick").onchange = (e)=>{ curMonth=e.target.value; renderDashboard(); };
-  document.getElementById("addCat").onclick = ()=>{
+  document.getElementById("monthPick").onchange = async (e)=>{ curMonth=e.target.value; await renderDashboard(); };
+  document.getElementById("addCat").onclick = async ()=>{
     const v=document.getElementById("newCat").value.trim();
     if(!v) return;
-    const uu=curUser(); uu.categories.push({id:"c"+Date.now(), name:v}); saveCurUser(uu); renderDashboard();
+    await supa.from("categories").insert({ user_id:authUser.id, name:v });
+    await loadData();
+    await renderDashboard();
   };
 
-  const monthData = (u.months && u.months[curMonth]) ? u.months[curMonth] : {values:{}};
+  const monthValues = entriesForMonth(curMonth);
   const rows=document.getElementById("rows");
   rows.innerHTML="";
-  u.categories.forEach(c=>{
+  categories.forEach(c=>{
     const div=document.createElement("div"); div.className="line";
     div.innerHTML = `<span class="name">${c.name}</span>
       <span class="curr">R$</span>
-      <input class="amount" type="text" inputmode="decimal" placeholder="0,00" data-id="${c.id}" value="${monthData.values[c.id] ? formatAmount(monthData.values[c.id]) : ''}">
+      <input class="amount" type="text" inputmode="decimal" placeholder="0,00" data-id="${c.id}" value="${monthValues[c.id] ? formatAmount(monthValues[c.id]) : ''}">
       <button class="remove" data-del="${c.id}" title="Remover">×</button>`;
     rows.appendChild(div);
   });
@@ -454,34 +493,32 @@ function renderDashboard(){
     i.onblur = ()=>{ if(i.value.trim()==="") return; i.value = formatAmount(parseBRL(i.value)); };
     i.onfocus = ()=>{ i.select(); };
   });
-  rows.querySelectorAll("button[data-del]").forEach(b=> b.onclick = ()=>{
-    const uu=curUser(); uu.categories = uu.categories.filter(c=>c.id!==b.dataset.del); saveCurUser(uu); renderDashboard();
+  rows.querySelectorAll("button[data-del]").forEach(b=> b.onclick = async ()=>{
+    await supa.from("categories").delete().eq("id", b.dataset.del);
+    await loadData();
+    await renderDashboard();
   });
   recalcTotal();
 
-  document.getElementById("save").onclick = ()=>{
-    const uu=curUser();
-    const newValues={};
-    rows.querySelectorAll("input.amount").forEach(i=> newValues[i.dataset.id]=parseBRL(i.value));
-    const total=recalcTotal();
-    uu.months = uu.months || {};
-    uu.months[curMonth] = {values:newValues, total};
-    if(!uu.monthKeys.includes(curMonth)){ uu.monthKeys.push(curMonth); uu.monthKeys.sort(); }
-    saveCurUser(uu);
-    renderCompDashboard();
+  document.getElementById("save").onclick = async ()=>{
+    const btn=document.getElementById("save"); btn.disabled=true;
+    const rowsToSave = categories.map(c=>{
+      const input = rows.querySelector(`input[data-id="${c.id}"]`);
+      return { user_id:authUser.id, month_key:curMonth, category_id:c.id, amount: parseBRL(input.value) };
+    });
+    await supa.from("month_entries").upsert(rowsToSave, { onConflict:"user_id,month_key,category_id" });
+    await loadData();
+    btn.disabled=false;
+    await renderCompDashboard();
   };
-  renderCompDashboard();
+  await renderCompDashboard();
 }
 
-function shiftMonth(k,delta){ let [y,m]=k.split("-").map(Number); m+=delta; while(m<1){m+=12;y--;} while(m>12){m-=12;y++;} return y+"-"+String(m).padStart(2,"0"); }
-
-function renderCompDashboard(){
-  const u=curUser();
+async function renderCompDashboard(){
   const aKey=document.getElementById("dashAnalysis").value;
   const cKey=document.getElementById("dashCompare").value;
-  const aData=(u.months&&u.months[aKey])?u.months[aKey]:{values:{},total:0};
-  const cData=(u.months&&u.months[cKey])?u.months[cKey]:{values:{},total:0};
-  const aTotal=aData.total||0, cTotal=cData.total||0;
+  const aData=entriesForMonth(aKey), cData=entriesForMonth(cKey);
+  const aTotal=totalForMonth(aKey), cTotal=totalForMonth(cKey);
   const diff=aTotal-cTotal, diffPct = cTotal ? (diff/cTotal*100) : (aTotal>0?100:0);
   const cls = diff>0?"up":diff<0?"down":"";
 
@@ -492,25 +529,22 @@ function renderCompDashboard(){
     <div class="sbox"><span class="slabel">Variação (%)</span><span class="sval ${cls}">${diffPct.toFixed(1)}%</span></div>`;
 
   let rows="";
-  u.categories.forEach(c=>{
-    const av=aData.values[c.id]||0, cv=cData.values[c.id]||0, d=av-cv, dp=cv?(d/cv*100):(av>0?100:0), rc=d>0?"up":d<0?"down":"";
+  categories.forEach(c=>{
+    const av=aData[c.id]||0, cv=cData[c.id]||0, d=av-cv, dp=cv?(d/cv*100):(av>0?100:0), rc=d>0?"up":d<0?"down":"";
     rows += `<tr><td>${c.name}</td><td>${brl(av)}</td><td>${brl(cv)}</td><td class="${rc}">${brl(d)}</td><td class="${rc}">${dp.toFixed(1)}%</td></tr>`;
   });
   rows += `<tr class="totrow"><td>Total</td><td>${brl(aTotal)}</td><td>${brl(cTotal)}</td><td class="${cls}">${brl(diff)}</td><td class="${cls}">${diffPct.toFixed(1)}%</td></tr>`;
   document.getElementById("cmpTable").innerHTML = `<thead><tr><th>Categoria</th><th>Análise</th><th>Comparação</th><th>Var. R$</th><th>Var. %</th></tr></thead><tbody>${rows}</tbody>`;
 
-  drawMonthsChart(u, aKey, cKey);
+  drawMonthsChart(aKey, cKey);
 }
 
-function pad2(m){ return String(m).padStart(2,"0"); }
-const MONTH_ABBR=["Jan","Fev","Mar","Abr","Mai","Jun","Jul","Ago","Set","Out","Nov","Dez"];
-
-function drawMonthsChart(u, aKey, cKey){
+function drawMonthsChart(aKey, cKey){
   const chart=document.getElementById("chart");
   if(!chart) return;
   const year = (aKey||curMonth).split("-")[0];
   const keys = MONTH_ABBR.map((_,i)=> year+"-"+pad2(i+1));
-  const totals = keys.map(k=>(u.months&&u.months[k]&&u.months[k].total)||0);
+  const totals = keys.map(k=>totalForMonth(k));
   const max=Math.max(...totals,1);
   const w=keys.length*90, h=200, barW=46;
   let bars="";
