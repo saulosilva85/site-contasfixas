@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
-<title>Despesas Fixas</title>
+<title>Contas Fixas</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,400;9..144,600&family=Inter:wght@400;500;600&display=swap" rel="stylesheet">
@@ -96,7 +96,7 @@ textarea{padding:11px;border:1px solid var(--line);border-radius:3px;background:
 </style>
 </head>
 <body>
-<header><div class="mark">Despesas Fix<em>as</em>.</div><span id="whoami"></span></header>
+<header><div class="mark">Contas Fix<em>as</em>.</div><span id="whoami"></span></header>
 <main id="app"><div class="center muted">Carregando...</div></main>
 
 <script>
@@ -120,7 +120,7 @@ function formatAmount(v){ return (v||0).toLocaleString("pt-BR",{minimumFractionD
 function shiftMonth(k,delta){ let [y,m]=k.split("-").map(Number); m+=delta; while(m<1){m+=12;y--;} while(m>12){m-=12;y++;} return y+"-"+String(m).padStart(2,"0"); }
 function firstName(n){ n=(n||"").trim(); return n ? n.split(/\s+/)[0] : n; }
 
-const DEFAULT_CATS=["Aluguel ou prestação da casa","Condomínio","Água","Energia elétrica","IPTU","Telefone","Internet","Gás de Cozinha","Supermercado","Cartões de Crédito","Plano de saúde","Seguro do veículo","Transporte público","Mensalidade escolar ou faculdade","Farmácia","Academia","Assinaturas"];
+const DEFAULT_CATS=["Aluguel ou prestação da casa","Condomínio","Água","Energia elétrica","Telefone","Internet","Gás de Cozinha","Supermercado","Alimentação","Mensalidade escolar ou faculdade"];
 
 let authUser=null, profile=null, categories=[], entries=[], curMonth=monthKey(new Date());
 function app(){ return document.getElementById("app"); }
@@ -374,11 +374,11 @@ function openDeleteAccountModal(){
 function renderPlan(){
   app().innerHTML = `<div class="plan" style="max-width:420px;margin:10px auto 0">
     <div class="muted">Plano</div>
-    <div class="price serif">R$15</div>
+    <div class="price serif">R$20</div>
     <p class="muted" style="margin-top:-8px">pagamento único</p>
     <p class="muted" style="margin-top:10px">Controle completo das suas despesas fixas, com cálculo automático e comparativo entre meses.</p>
     <ul>
-      <li>17 despesas fixas já cadastradas para começar</li>
+      <li>10 despesas fixas já cadastradas para começar</li>
       <li>Adicione ou remova despesas quando quiser</li>
       <li>Total do mês calculado automaticamente</li>
       <li>Dashboard comparando os meses automaticamente</li>
@@ -386,7 +386,7 @@ function renderPlan(){
     <div class="pix-box">
       <div class="pix-qr">▦</div>
       <p class="muted center" style="margin-top:0">Escaneie o QR Code ou copie o código Pix abaixo</p>
-      <div class="pix-code" id="pixCode">00020126580014BR.GOV.BCB.PIX0136fixas-despesas-exemplo520400005303986540515.005802BR5913Despesas Fixas6009SAO PAULO62070503***6304ABCD</div>
+      <div class="pix-code" id="pixCode">00020126570014BR.GOV.BCB.PIX0135contas-fixas-exemplo520400005303986540520.005802BR5912Contas Fixas6009SAO PAULO62070503***6304ABCD</div>
       <button class="ghost" id="copyPix" style="width:100%">Copiar código</button>
     </div>
     <button class="btn" id="pay" style="width:100%;margin-top:14px">Confirmar pagamento</button>
