@@ -253,7 +253,7 @@ function renderProfileMenu(u){
   const btn=document.getElementById("profileBtn"), menu=document.getElementById("profileMenu");
   btn.onclick = (e)=>{ e.stopPropagation(); menu.classList.toggle("open"); };
   document.getElementById("openProfile").onclick = ()=>{ menu.classList.remove("open"); openProfileModal(); };
-  document.getElementById("logout").onclick = async ()=>{ await supa.auth.signOut(); authUser=null; profile=null; renderAuth("login"); };
+  document.getElementById("logout").onclick = async ()=>{ stopPolling(); await supa.auth.signOut(); authUser=null; profile=null; renderAuth("login"); };
   document.getElementById("openChangePass").onclick = ()=>{ menu.classList.remove("open"); openChangePasswordModal(); };
   document.getElementById("openDeleteAccount").onclick = ()=>{ menu.classList.remove("open"); openDeleteAccountModal(); };
 }
@@ -381,6 +381,8 @@ function openDeleteAccountModal(){
   };
 }
 
+let pollTimer=null;
+
 function renderPlan(){
   app().innerHTML = `<div class="plan" style="max-width:420px;margin:10px auto 0">
     <div class="muted">Plano</div>
@@ -393,32 +395,63 @@ function renderPlan(){
       <li>Total do mês calculado automaticamente</li>
       <li>Dashboard comparando os meses automaticamente</li>
     </ul>
-    <div class="pix-box">
-      <div class="pix-qr">▦</div>
-      <p class="muted center" style="margin-top:0">Escaneie o QR Code ou copie o código Pix abaixo</p>
-      <div class="pix-code" id="pixCode">00020126570014BR.GOV.BCB.PIX0135contas-fixas-exemplo520400005303986540520.005802BR5912Contas Fixas6009SAO PAULO62070503***6304ABCD</div>
-      <button class="ghost" id="copyPix" style="width:100%">Copiar código</button>
-    </div>
-    <button class="btn" id="pay" style="width:100%;margin-top:14px">Confirmar pagamento</button>
-    <button class="ghost" id="cancelPlan" style="width:100%;margin-top:10px;color:var(--danger);border-color:var(--danger)">Cancelar</button>
-    <p class="muted center" style="margin-top:12px">Pagamento simulado nesta versão de testes.</p>
+    <div id="pixArea"><div class="center muted">Gerando código Pix...</div></div>
+    <button class="ghost" id="cancelPlan" style="width:100%;margin-top:14px;color:var(--danger);border-color:var(--danger)">Cancelar</button>
   </div>`;
-  const copyBtn=document.getElementById("copyPix");
-  copyBtn.onclick = ()=>{
-    const code=document.getElementById("pixCode").textContent;
-    navigator.clipboard && navigator.clipboard.writeText(code).then(()=>{ copyBtn.textContent="Código copiado!"; setTimeout(()=>copyBtn.textContent="Copiar código",1800); }).catch(()=>{});
+  document.getElementById("cancelPlan").onclick = ()=> openCancelPlanModal();
+  generatePix();
+}
+
+async function generatePix(){
+  const area=document.getElementById("pixArea");
+  area.innerHTML = '<div class="center muted">Gerando código Pix...</div>';
+  const { data, error } = await supa.functions.invoke("create-pix");
+  if(error || !data || data.error || !data.qr_code){
+    const msg = (data && data.error) ? data.error : "Não foi possível gerar o Pix agora.";
+    area.innerHTML = `<div class="err" style="display:block">${msg}</div><button class="ghost" id="retryPix" style="width:100%">Tentar novamente</button>`;
+    document.getElementById("retryPix").onclick = generatePix;
+    return;
+  }
+  area.innerHTML = `<div class="pix-box">
+    <img src="data:image/png;base64,${data.qr_code_base64}" alt="QR Code Pix" style="width:180px;height:180px;margin:0 auto 12px;display:block;border-radius:4px;">
+    <p class="muted center" style="margin-top:0">Escaneie o QR Code ou copie o código Pix abaixo</p>
+    <div class="pix-code" id="pixCode">${data.qr_code}</div>
+    <button class="ghost" id="copyPix" style="width:100%">Copiar código</button>
+    <button class="btn" id="checkNow" style="width:100%;margin-top:10px">Já paguei, verificar agora</button>
+    <p class="muted center" id="waitMsg" style="margin-top:10px">Aguardando confirmação automática do pagamento...</p>
+  </div>`;
+  document.getElementById("copyPix").onclick = ()=>{
+    const btn=document.getElementById("copyPix");
+    navigator.clipboard && navigator.clipboard.writeText(data.qr_code).then(()=>{ btn.textContent="Código copiado!"; setTimeout(()=>btn.textContent="Copiar código",1800); }).catch(()=>{});
   };
-  document.getElementById("pay").onclick = async ()=>{
-    const btn=document.getElementById("pay"); btn.disabled=true;
-    const name = (profile && profile.name) || authUser.email.split("@")[0];
-    const { data } = await supa.from("profiles").upsert({ id:authUser.id, name, activated:true }).select().single();
-    profile = data;
-    await supa.from("categories").insert(DEFAULT_CATS.map(n=>({ user_id:authUser.id, name:n })));
+  document.getElementById("checkNow").onclick = ()=> checkPaymentOnce(true);
+  startPolling();
+}
+
+async function checkPaymentOnce(manual){
+  const { data: prof } = await supa.from("profiles").select("*").eq("id",authUser.id).maybeSingle();
+  if(prof && prof.activated){
+    if(pollTimer){ clearInterval(pollTimer); pollTimer=null; }
+    profile = prof;
     await loadData();
     renderProfileMenu(profile);
     renderDashboard();
-  };
-  document.getElementById("cancelPlan").onclick = ()=> openCancelPlanModal();
+    return true;
+  }
+  if(manual){
+    const msg=document.getElementById("waitMsg");
+    if(msg) msg.textContent = "Ainda não identificamos o pagamento. Aguarde alguns segundos após pagar e tente novamente.";
+  }
+  return false;
+}
+
+function startPolling(){
+  if(pollTimer) clearInterval(pollTimer);
+  pollTimer = setInterval(()=> checkPaymentOnce(false), 5000);
+}
+
+function stopPolling(){
+  if(pollTimer){ clearInterval(pollTimer); pollTimer=null; }
 }
 
 function openCancelPlanModal(){
@@ -436,6 +469,7 @@ function openCancelPlanModal(){
   overlay.onclick = (e)=>{ if(e.target===overlay) overlay.remove(); };
   document.getElementById("cancelNo").onclick = ()=> overlay.remove();
   document.getElementById("cancelYes").onclick = async ()=>{
+    stopPolling();
     await supa.auth.signOut();
     authUser=null; profile=null;
     overlay.remove();
