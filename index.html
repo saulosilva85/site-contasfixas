@@ -166,6 +166,8 @@ function translateAuthError(msg){
   if(msg.includes("Invalid login credentials")) return "E-mail ou senha incorretos.";
   if(msg.includes("Email not confirmed")) return "Confirme seu e-mail antes de entrar (verifique sua caixa de entrada).";
   if(msg.includes("Password should be at least")) return "A senha deve ter pelo menos 6 caracteres.";
+  const waitMatch = msg.match(/after (\d+) seconds?/i);
+  if(waitMatch) return `Por segurança, aguarde ${waitMatch[1]} segundos antes de tentar de novo.`;
   return msg;
 }
 
