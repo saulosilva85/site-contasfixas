@@ -477,7 +477,15 @@ function openCancelPlanModal(){
   };
 }
 
-async function renderDashboard(){
+function getUnsavedValues(){
+  const rows=document.getElementById("rows");
+  const map={};
+  if(!rows) return map;
+  rows.querySelectorAll("input.amount").forEach(i=>{ map[i.dataset.id]=i.value; });
+  return map;
+}
+
+async function renderDashboard(pendingValues){
   app().innerHTML = `
   <div class="block">
     <h2>mês em edição</h2>
@@ -512,19 +520,22 @@ async function renderDashboard(){
   document.getElementById("addCat").onclick = async ()=>{
     const v=document.getElementById("newCat").value.trim();
     if(!v) return;
+    const pending=getUnsavedValues();
     await supa.from("categories").insert({ user_id:authUser.id, name:v });
     await loadData();
-    await renderDashboard();
+    await renderDashboard(pending);
   };
 
   const monthValues = entriesForMonth(curMonth);
   const rows=document.getElementById("rows");
   rows.innerHTML="";
   categories.forEach(c=>{
+    const pendingVal = pendingValues && Object.prototype.hasOwnProperty.call(pendingValues, c.id) ? pendingValues[c.id] : null;
+    const displayVal = pendingVal !== null ? pendingVal : (monthValues[c.id] ? formatAmount(monthValues[c.id]) : '');
     const div=document.createElement("div"); div.className="line";
     div.innerHTML = `<span class="name">${c.name}</span>
       <span class="curr">R$</span>
-      <input class="amount" type="text" inputmode="decimal" placeholder="0,00" data-id="${c.id}" value="${monthValues[c.id] ? formatAmount(monthValues[c.id]) : ''}">
+      <input class="amount" type="text" inputmode="decimal" placeholder="0,00" data-id="${c.id}" value="${displayVal}">
       <button class="remove" data-del="${c.id}" title="Remover">×</button>`;
     rows.appendChild(div);
   });
@@ -539,9 +550,11 @@ async function renderDashboard(){
     i.onfocus = ()=>{ i.select(); };
   });
   rows.querySelectorAll("button[data-del]").forEach(b=> b.onclick = async ()=>{
+    const pending=getUnsavedValues();
+    delete pending[b.dataset.del];
     await supa.from("categories").delete().eq("id", b.dataset.del);
     await loadData();
-    await renderDashboard();
+    await renderDashboard(pending);
   });
   recalcTotal();
 
