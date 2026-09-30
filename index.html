@@ -129,6 +129,9 @@ function parseBRL(s){
 function formatAmount(v){ return (v||0).toLocaleString("pt-BR",{minimumFractionDigits:2,maximumFractionDigits:2}); }
 function shiftMonth(k,delta){ let [y,m]=k.split("-").map(Number); m+=delta; while(m<1){m+=12;y--;} while(m>12){m-=12;y++;} return y+"-"+String(m).padStart(2,"0"); }
 function firstName(n){ n=(n||"").trim(); return n ? n.split(/\s+/)[0] : n; }
+function escapeHtml(s){
+  return (s==null?"":String(s)).replace(/[&<>"']/g, c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));
+}
 
 const DEFAULT_CATS=["Aluguel ou prestação da casa","Condomínio","Água","Energia elétrica","Telefone","Internet","Gás de Cozinha","Supermercado","Alimentação","Mensalidade escolar ou faculdade"];
 
@@ -240,7 +243,7 @@ function renderProfileMenu(u){
   who(`<div class="profile">
     <button class="profile-btn" id="profileBtn">
       <span class="avatar" id="avatarChip">${avatar ? `<img src="${avatar}">` : displayName.charAt(0).toUpperCase()}</span>
-      ${displayName} ▾
+      ${escapeHtml(displayName)} ▾
     </button>
     <div class="profile-menu" id="profileMenu">
       <button id="openProfile">Perfil</button>
@@ -280,10 +283,10 @@ function openProfileModal(){
       </div>
       <input type="file" id="photoInput" accept="image/*" style="display:none">
     </div>
-    <input type="text" id="pfName" placeholder="Nome" value="${u.name||''}">
-    <input type="text" id="pfPhone" placeholder="Telefone" value="${u.phone||''}">
-    <input type="text" id="pfAddress" placeholder="Endereço" value="${u.address||''}">
-    <textarea id="pfInfo" placeholder="Outras informações" rows="3">${u.info||''}</textarea>
+    <input type="text" id="pfName" placeholder="Nome" value="${escapeHtml(u.name||'')}">
+    <input type="text" id="pfPhone" placeholder="Telefone" value="${escapeHtml(u.phone||'')}">
+    <input type="text" id="pfAddress" placeholder="Endereço" value="${escapeHtml(u.address||'')}">
+    <textarea id="pfInfo" placeholder="Outras informações" rows="3">${escapeHtml(u.info||'')}</textarea>
     <div style="display:flex;gap:10px">
       <button class="ghost" id="pfCancel" style="flex:1">Cancelar</button>
       <button class="btn" id="pfSave" style="flex:1">Salvar</button>
@@ -535,7 +538,7 @@ async function renderDashboard(pendingValues){
     const pendingVal = pendingValues && Object.prototype.hasOwnProperty.call(pendingValues, c.id) ? pendingValues[c.id] : null;
     const displayVal = pendingVal !== null ? pendingVal : (monthValues[c.id] ? formatAmount(monthValues[c.id]) : '');
     const div=document.createElement("div"); div.className="line";
-    div.innerHTML = `<span class="name">${c.name}</span>
+    div.innerHTML = `<span class="name">${escapeHtml(c.name)}</span>
       <span class="curr">R$</span>
       <input class="amount" type="text" inputmode="decimal" placeholder="0,00" data-id="${c.id}" value="${displayVal}">
       <button class="remove" data-del="${c.id}" title="Remover">×</button>`;
@@ -591,7 +594,7 @@ async function renderCompDashboard(){
   let rows="";
   categories.forEach(c=>{
     const av=aData[c.id]||0, cv=cData[c.id]||0, d=av-cv, dp=cv?(d/cv*100):(av>0?100:0), rc=d>0?"up":d<0?"down":"";
-    rows += `<tr><td>${c.name}</td><td>${brl(av)}</td><td>${brl(cv)}</td><td class="${rc}">${brl(d)}</td><td class="${rc}">${dp.toFixed(1)}%</td></tr>`;
+    rows += `<tr><td>${escapeHtml(c.name)}</td><td>${brl(av)}</td><td>${brl(cv)}</td><td class="${rc}">${brl(d)}</td><td class="${rc}">${dp.toFixed(1)}%</td></tr>`;
   });
   rows += `<tr class="totrow"><td>Total</td><td>${brl(aTotal)}</td><td>${brl(cTotal)}</td><td class="${cls}">${brl(diff)}</td><td class="${cls}">${diffPct.toFixed(1)}%</td></tr>`;
   document.getElementById("cmpTable").innerHTML = `<thead><tr><th>Categoria</th><th>Análise</th><th>Comparação</th><th>Var. R$</th><th>Var. %</th></tr></thead><tbody>${rows}</tbody>`;
