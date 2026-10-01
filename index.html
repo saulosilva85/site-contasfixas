@@ -103,6 +103,10 @@ svg text{fill:var(--text);font-family:"Inter";}
 .avatar-lg{width:76px;height:76px;border-radius:50%;background:var(--brass);color:#fff8ee;display:flex;align-items:center;justify-content:center;font-size:28px;margin:0 auto;overflow:hidden;font-family:"Fraunces",serif;}
 .avatar-lg img{width:100%;height:100%;object-fit:cover;}
 textarea{padding:11px;border:1px solid var(--line);border-radius:3px;background:var(--panel);color:var(--text);font-size:14px;width:100%;margin-bottom:12px;font-family:"Inter";resize:vertical;}
+.pwd-wrap{position:relative;margin-bottom:12px;}
+.pwd-wrap input[type=password],.pwd-wrap input[type=text]{margin-bottom:0;padding-right:42px;}
+.pwd-toggle{position:absolute;right:8px;top:50%;transform:translateY(-50%);background:none;border:none;cursor:pointer;font-size:16px;color:var(--muted);padding:6px;line-height:1;}
+.pwd-toggle:hover{color:var(--text);}
 </style>
 </head>
 <body>
@@ -135,6 +139,22 @@ function shiftMonth(k,delta){ let [y,m]=k.split("-").map(Number); m+=delta; whil
 function firstName(n){ n=(n||"").trim(); return n ? n.split(/\s+/)[0] : n; }
 function escapeHtml(s){
   return (s==null?"":String(s)).replace(/[&<>"']/g, c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));
+}
+function wirePasswordToggle(id){
+  const input=document.getElementById(id);
+  if(!input || input.dataset.toggled) return;
+  input.dataset.toggled="1";
+  const wrapper=document.createElement("div");
+  wrapper.className="pwd-wrap";
+  input.parentNode.insertBefore(wrapper, input);
+  wrapper.appendChild(input);
+  const btn=document.createElement("button");
+  btn.type="button"; btn.className="pwd-toggle"; btn.setAttribute("aria-label","Mostrar senha"); btn.textContent="👁";
+  btn.onclick=()=>{
+    if(input.type==="password"){ input.type="text"; btn.textContent="🙈"; }
+    else { input.type="password"; btn.textContent="👁"; }
+  };
+  wrapper.appendChild(btn);
 }
 
 const DEFAULT_CATS=["Aluguel ou prestação da casa","Condomínio","Água","Energia elétrica","Telefone","Internet","Gás de Cozinha","Supermercado","Alimentação","Mensalidade escolar ou faculdade"];
@@ -197,6 +217,7 @@ function renderAuth(mode){
   </div>`;
   document.getElementById(mode==="login"?"toSignup":"toLogin").onclick = ()=> renderAuth(mode==="login"?"signup":"login");
   if(mode==="login") document.getElementById("forgotPass").onclick = ()=> renderForgotPassword();
+  wirePasswordToggle("aPass");
   ["aName","aEmail","aPass"].forEach(id=>{
     const el=document.getElementById(id);
     if(el) el.addEventListener("keydown", e=>{ if(e.key==="Enter"){ e.preventDefault(); document.getElementById("aSubmit").click(); } });
@@ -344,6 +365,7 @@ function renderSetNewPassword(){
     <button class="btn" id="spwSave" style="width:100%">Salvar nova senha</button>
   </div>`;
   ["spwNew","spwConfirm"].forEach(id=> document.getElementById(id).addEventListener("keydown", e=>{ if(e.key==="Enter"){ e.preventDefault(); document.getElementById("spwSave").click(); } }));
+  ["spwNew","spwConfirm"].forEach(wirePasswordToggle);
   document.getElementById("spwSave").onclick = async ()=>{
     const nw=document.getElementById("spwNew").value;
     const cf=document.getElementById("spwConfirm").value;
@@ -461,6 +483,7 @@ function openChangePasswordModal(){
   overlay.onclick = (e)=>{ if(e.target===overlay) overlay.remove(); };
   document.getElementById("pwCancel").onclick = ()=> overlay.remove();
   ["pwCurrent","pwNew","pwConfirm"].forEach(id=> document.getElementById(id).addEventListener("keydown", e=>{ if(e.key==="Enter"){ e.preventDefault(); document.getElementById("pwSave").click(); } }));
+  ["pwCurrent","pwNew","pwConfirm"].forEach(wirePasswordToggle);
   document.getElementById("pwSave").onclick = async ()=>{
     const cur=document.getElementById("pwCurrent").value;
     const nw=document.getElementById("pwNew").value;
@@ -494,6 +517,7 @@ function openDeleteAccountModal(){
   overlay.onclick = (e)=>{ if(e.target===overlay) overlay.remove(); };
   document.getElementById("delCancel").onclick = ()=> overlay.remove();
   document.getElementById("delPass").addEventListener("keydown", e=>{ if(e.key==="Enter"){ e.preventDefault(); document.getElementById("delConfirm").click(); } });
+  wirePasswordToggle("delPass");
   document.getElementById("delConfirm").onclick = async ()=>{
     const pass=document.getElementById("delPass").value;
     const err=document.getElementById("delErr");
