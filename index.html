@@ -216,25 +216,63 @@ function renderAuth(mode){
   };
 }
 
+let resendTimer=null;
+function startResendCountdown(seconds){
+  const btn=document.getElementById("resendEmail");
+  const msg=document.getElementById("resendMsg");
+  if(!btn) return;
+  if(resendTimer){ clearInterval(resendTimer); resendTimer=null; }
+  let remaining=seconds;
+  btn.disabled=true;
+  const update=()=>{
+    btn.textContent = remaining>0 ? `Reenviar e-mail de confirmação (${remaining}s)` : "Reenviar e-mail de confirmação";
+    if(remaining>0){
+      msg.style.display="block"; msg.style.color="var(--muted)";
+      msg.textContent = `Você poderá reenviar em ${remaining} segundo${remaining===1?"":"s"}.`;
+    } else {
+      msg.style.display="none";
+    }
+  };
+  update();
+  resendTimer = setInterval(()=>{
+    remaining--;
+    if(remaining<=0){
+      clearInterval(resendTimer); resendTimer=null;
+      btn.disabled=false;
+    }
+    update();
+  },1000);
+}
+
 function renderCheckEmail(email){
   who("");
   app().innerHTML = `<div class="card center" style="max-width:400px;margin:20px auto 0">
     <h2 style="font-style:normal;color:var(--text);font-size:19px;margin-top:0">Confirme seu e-mail</h2>
     <p class="muted">Enviamos um link de confirmação para <strong>${email}</strong>. Clique no link e depois volte aqui para entrar.</p>
     <p class="muted" style="margin-top:-4px">Não chegou? Confira a caixa de spam antes de reenviar.</p>
-    <div id="resendMsg" class="muted" style="display:none;color:var(--brass-deep)"></div>
+    <div id="resendMsg" class="muted" style="display:none"></div>
     <button class="ghost" id="resendEmail" style="width:100%;margin-top:6px">Reenviar e-mail de confirmação</button>
     <button class="btn" id="backToLogin" style="width:100%;margin-top:10px">Ir para o login</button>
   </div>`;
-  document.getElementById("backToLogin").onclick = ()=> renderAuth("login");
+  document.getElementById("backToLogin").onclick = ()=>{ if(resendTimer){ clearInterval(resendTimer); resendTimer=null; } renderAuth("login"); };
   document.getElementById("resendEmail").onclick = async ()=>{
     const btn=document.getElementById("resendEmail"); btn.disabled=true;
     const msg=document.getElementById("resendMsg");
     const { error } = await supa.auth.resend({ type:"signup", email, options:{ emailRedirectTo: window.location.origin + window.location.pathname } });
     msg.style.display="block";
-    msg.textContent = error ? translateAuthError(error.message) : "E-mail reenviado! Confira sua caixa de entrada (e o spam).";
-    btn.disabled=false;
+    if(error){
+      const waitMatch = error.message.match(/after (\d+) seconds?/i);
+      const secs = waitMatch ? parseInt(waitMatch[1],10) : 30;
+      msg.style.color="var(--danger)";
+      msg.textContent = translateAuthError(error.message);
+      setTimeout(()=> startResendCountdown(secs), 1800);
+    } else {
+      msg.style.color="var(--brass-deep)";
+      msg.textContent = "E-mail reenviado! Confira sua caixa de entrada (e o spam).";
+      setTimeout(()=> startResendCountdown(30), 1800);
+    }
   };
+  startResendCountdown(30);
 }
 
 function renderProfileMenu(u){
