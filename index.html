@@ -146,6 +146,9 @@ function entriesForMonth(k){ const m={}; entries.filter(e=>e.month_key===k).forE
 function totalForMonth(k){ return entries.filter(e=>e.month_key===k).reduce((s,e)=>s+Number(e.amount),0); }
 
 async function init(){
+  if(window.location.hash.includes("type=recovery")){
+    return; // deixa o evento PASSWORD_RECOVERY cuidar da tela, sem competir com o login normal
+  }
   const { data } = await supa.auth.getSession();
   if(data.session){ authUser=data.session.user; await afterLogin(); }
   else renderAuth("login");
@@ -533,7 +536,7 @@ async function generatePix(){
   const { data, error } = await supa.functions.invoke("create-pix");
   if(error || !data || data.error || !data.qr_code){
     const msg = (data && data.error) ? data.error : "Não foi possível gerar o Pix agora.";
-    area.innerHTML = `<div class="err" style="display:block">${msg}</div><button class="ghost" id="retryPix" style="width:100%">Tentar novamente</button>`;
+    area.innerHTML = `<div class="err" style="display:block">${escapeHtml(msg)}</div><button class="ghost" id="retryPix" style="width:100%">Tentar novamente</button>`;
     document.getElementById("retryPix").onclick = generatePix;
     return;
   }
