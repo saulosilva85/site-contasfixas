@@ -115,6 +115,10 @@ const supa = window.supabase.createClient(
   "sb_publishable_Rq4XYqs_-7SRpBsbgQOBdg_zaWCP1cs"
 );
 
+supa.auth.onAuthStateChange((event, session)=>{
+  if(event === "PASSWORD_RECOVERY"){ renderSetNewPassword(); }
+});
+
 function monthKey(d){return d.getFullYear()+"-"+String(d.getMonth()+1).padStart(2,"0");}
 function monthLabel(k){const [y,m]=k.split("-");return ["janeiro","fevereiro","março","abril","maio","junho","julho","agosto","setembro","outubro","novembro","dezembro"][m-1]+" de "+y;}
 function pad2(m){return String(m).padStart(2,"0");}
@@ -183,11 +187,13 @@ function renderAuth(mode){
     <input type="email" id="aEmail" placeholder="E-mail">
     <input type="password" id="aPass" placeholder="Senha">
     <button class="btn" id="aSubmit" style="width:100%">${mode==="login" ? "Entrar" : "Cadastrar"}</button>
+    ${mode==="login" ? '<p class="center" style="margin-top:10px"><button class="text" id="forgotPass" style="font-size:13px">Esqueci minha senha</button></p>' : ""}
     <p class="center muted" style="margin-top:14px">${mode==="login"
       ? 'Ainda não tem conta? <button class="text" id="toSignup">Cadastre-se</button>'
       : 'Já tem conta? <button class="text" id="toLogin">Entrar</button>'}</p>
   </div>`;
   document.getElementById(mode==="login"?"toSignup":"toLogin").onclick = ()=> renderAuth(mode==="login"?"signup":"login");
+  if(mode==="login") document.getElementById("forgotPass").onclick = ()=> renderForgotPassword();
   ["aName","aEmail","aPass"].forEach(id=>{
     const el=document.getElementById(id);
     if(el) el.addEventListener("keydown", e=>{ if(e.key==="Enter"){ e.preventDefault(); document.getElementById("aSubmit").click(); } });
@@ -273,6 +279,82 @@ function renderCheckEmail(email){
     }
   };
   startResendCountdown(30);
+}
+
+function renderForgotPassword(){
+  who("");
+  app().innerHTML = `<div class="card" style="max-width:400px;margin:20px auto 0">
+    <h2 style="font-style:normal;color:var(--text);font-size:20px;margin-top:0;text-align:center">Esqueci minha senha</h2>
+    <p class="muted" style="margin-top:0">Digite seu e-mail e enviaremos um link para você criar uma nova senha.</p>
+    <div id="fpErr" class="err" style="display:none"></div>
+    <div id="fpMsg" class="muted" style="display:none"></div>
+    <input type="email" id="fpEmail" placeholder="E-mail">
+    <button class="btn" id="fpSubmit" style="width:100%">Enviar link de redefinição</button>
+    <p class="center muted" style="margin-top:14px"><button class="text" id="fpBackToLogin">Voltar para o login</button></p>
+  </div>`;
+  document.getElementById("fpBackToLogin").onclick = ()=>{ if(resendTimer){ clearInterval(resendTimer); resendTimer=null; } renderAuth("login"); };
+  document.getElementById("fpEmail").addEventListener("keydown", e=>{ if(e.key==="Enter"){ e.preventDefault(); document.getElementById("fpSubmit").click(); } });
+  document.getElementById("fpSubmit").onclick = async ()=>{
+    const btn=document.getElementById("fpSubmit");
+    const email=document.getElementById("fpEmail").value.trim().toLowerCase();
+    const errEl=document.getElementById("fpErr"), msgEl=document.getElementById("fpMsg");
+    errEl.style.display="none"; msgEl.style.display="none";
+    if(!email){ errEl.textContent="Digite seu e-mail."; errEl.style.display="block"; return; }
+    btn.disabled=true;
+    const { error } = await supa.auth.resetPasswordForEmail(email, { redirectTo: window.location.origin + window.location.pathname });
+    if(error){
+      errEl.textContent=translateAuthError(error.message); errEl.style.display="block";
+      const waitMatch = error.message.match(/after (\d+) seconds?/i);
+      startFpCountdown(waitMatch ? parseInt(waitMatch[1],10) : 30);
+      return;
+    }
+    msgEl.style.color="var(--brass-deep)";
+    msgEl.textContent = "Link enviado! Confira seu e-mail (e a caixa de spam) e clique no link para criar uma nova senha.";
+    msgEl.style.display="block";
+    startFpCountdown(30);
+  };
+}
+
+function startFpCountdown(seconds){
+  const btn=document.getElementById("fpSubmit");
+  if(!btn) return;
+  if(resendTimer){ clearInterval(resendTimer); resendTimer=null; }
+  let remaining=seconds;
+  btn.disabled=true;
+  const update=()=>{ btn.textContent = remaining>0 ? `Enviar link de redefinição (${remaining}s)` : "Enviar link de redefinição"; };
+  update();
+  resendTimer = setInterval(()=>{
+    remaining--;
+    if(remaining<=0){ clearInterval(resendTimer); resendTimer=null; btn.disabled=false; }
+    update();
+  },1000);
+}
+
+function renderSetNewPassword(){
+  who("");
+  app().innerHTML = `<div class="card" style="max-width:400px;margin:20px auto 0">
+    <h2 style="font-style:normal;color:var(--text);font-size:20px;margin-top:0;text-align:center">Criar nova senha</h2>
+    <p class="muted" style="margin-top:0">Digite a nova senha para sua conta.</p>
+    <div id="spwErr" class="err" style="display:none"></div>
+    <input type="password" id="spwNew" placeholder="Nova senha">
+    <input type="password" id="spwConfirm" placeholder="Confirmar nova senha">
+    <button class="btn" id="spwSave" style="width:100%">Salvar nova senha</button>
+  </div>`;
+  ["spwNew","spwConfirm"].forEach(id=> document.getElementById(id).addEventListener("keydown", e=>{ if(e.key==="Enter"){ e.preventDefault(); document.getElementById("spwSave").click(); } }));
+  document.getElementById("spwSave").onclick = async ()=>{
+    const nw=document.getElementById("spwNew").value;
+    const cf=document.getElementById("spwConfirm").value;
+    const err=document.getElementById("spwErr");
+    err.style.display="none";
+    if(nw.length<6){ err.textContent="A nova senha deve ter pelo menos 6 caracteres."; err.style.display="block"; return; }
+    if(nw!==cf){ err.textContent="As senhas não coincidem."; err.style.display="block"; return; }
+    const btn=document.getElementById("spwSave"); btn.disabled=true;
+    const { error } = await supa.auth.updateUser({ password:nw });
+    if(error){ btn.disabled=false; err.textContent=translateAuthError(error.message); err.style.display="block"; return; }
+    const { data } = await supa.auth.getUser();
+    authUser = data.user;
+    await afterLogin();
+  };
 }
 
 function renderProfileMenu(u){
