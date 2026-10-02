@@ -218,7 +218,7 @@ function renderAuth(mode){
       ? 'Ainda não tem conta? <button class="text" id="toSignup">Cadastre-se</button>'
       : 'Já tem conta? <button class="text" id="toLogin">Entrar</button>'}</p>
     <p class="center muted" style="margin-top:16px;font-size:12px">
-      <a href="termos.html" target="_blank" style="color:var(--muted)">Termos de Uso</a> · <a href="politica-privacidade.html" target="_blank" style="color:var(--muted)">Política de Privacidade</a>
+      <a href="termos.html" style="color:var(--muted)">Termos de Uso</a> · <a href="politica-privacidade.html" style="color:var(--muted)">Política de Privacidade</a>
     </p>
   </div>`;
   document.getElementById(mode==="login"?"toSignup":"toLogin").onclick = ()=> renderAuth(mode==="login"?"signup":"login");
