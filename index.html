@@ -207,7 +207,7 @@ function renderAuth(mode){
   who("");
   app().innerHTML = `<div class="card" style="max-width:400px;margin:20px auto 0">
     <h2 class="serif" style="font-style:normal;color:var(--text);font-size:20px;margin-top:0;text-align:center">${mode==="login" ? "Entrar na conta" : "Criar conta"}</h2>
-    ${mode==="signup" ? '<p class="center muted" style="margin-top:-6px;margin-bottom:16px">Acesso completo por <strong style="color:var(--brass-deep)">R$35</strong> (pagamento único via Pix)</p>' : ""}
+    ${mode==="signup" ? '<p class="center muted" style="margin-top:-6px;margin-bottom:16px">Acesso completo por <strong style="color:var(--brass-deep)">R$20</strong> (pagamento único via Pix)</p>' : ""}
     <div id="authErr" class="err" style="display:none"></div>
     ${mode==="signup" ? '<input type="text" id="aName" placeholder="Nome">' : ""}
     <input type="email" id="aEmail" placeholder="E-mail">
@@ -544,7 +544,7 @@ let pollTimer=null;
 function renderPlan(){
   app().innerHTML = `<div class="plan" style="max-width:420px;margin:10px auto 0">
     <div class="muted">Plano</div>
-    <div class="price serif">R$35</div>
+    <div class="price serif">R$20</div>
     <p class="muted" style="margin-top:-8px">pagamento único</p>
     <p class="muted" style="margin-top:10px">Controle completo das suas despesas fixas, com cálculo automático e comparativo entre meses.</p>
     <ul>
