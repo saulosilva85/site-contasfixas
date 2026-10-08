@@ -107,12 +107,6 @@ textarea{padding:11px;border:1px solid var(--line);border-radius:3px;background:
 .pwd-wrap input[type=password],.pwd-wrap input[type=text]{margin-bottom:0;padding-right:42px;}
 .pwd-toggle{position:absolute;right:8px;top:50%;transform:translateY(-50%);background:none;border:none;cursor:pointer;color:var(--muted);padding:6px;line-height:1;display:flex;align-items:center;}
 .pwd-toggle:hover{color:var(--text);}
-.preview-link{background:none;border:none;color:var(--muted);font-size:12.5px;cursor:pointer;font-family:"Inter";text-decoration:underline;text-underline-offset:2px;padding:0;}
-.preview-link:hover{color:var(--text);}
-.preview-strip{display:flex;gap:10px;overflow-x:auto;padding:4px 2px 2px;-webkit-overflow-scrolling:touch;}
-.preview-strip img{height:150px;width:auto;border-radius:6px;border:1px solid var(--line);flex-shrink:0;cursor:zoom-in;display:block;}
-.lightbox-overlay{position:fixed;inset:0;background:rgba(0,0,0,.72);display:flex;align-items:center;justify-content:center;z-index:80;padding:24px;cursor:zoom-out;}
-.lightbox-overlay img{max-width:100%;max-height:100%;border-radius:8px;box-shadow:0 12px 40px rgba(0,0,0,.4);}
 </style>
 </head>
 <body>
@@ -223,36 +217,11 @@ function renderAuth(mode){
     <p class="center muted" style="margin-top:14px">${mode==="login"
       ? 'Ainda não tem conta? <button class="text" id="toSignup">Cadastre-se</button>'
       : 'Já tem conta? <button class="text" id="toLogin">Entrar</button>'}</p>
-    <p class="center" style="margin-top:16px">
-      <button class="preview-link" id="previewToggle">Ver prints do app</button>
-    </p>
-    <div id="previewGallery" style="display:none;margin-top:10px">
-      <div class="preview-strip">
-        <img src="img/preview-despesas.jpg" alt="Tela de contas fixas do mês">
-        <img src="img/preview-dashboard.jpg" alt="Dashboard comparativo entre meses">
-        <img src="img/preview-evolucao.jpg" alt="Gráfico de evolução mensal">
-      </div>
-    </div>
     <p class="center muted" style="margin-top:16px;font-size:12px">
       <a href="termos.html" style="color:var(--muted)">Termos de Uso</a> · <a href="politica-privacidade.html" style="color:var(--muted)">Política de Privacidade</a>
     </p>
   </div>`;
   document.getElementById(mode==="login"?"toSignup":"toLogin").onclick = ()=> renderAuth(mode==="login"?"signup":"login");
-  document.getElementById("previewToggle").onclick = ()=>{
-    const g=document.getElementById("previewGallery");
-    const open = g.style.display==="none";
-    g.style.display = open ? "block" : "none";
-    document.getElementById("previewToggle").textContent = open ? "Ocultar prints do app" : "Ver prints do app";
-  };
-  document.getElementById("previewGallery").querySelectorAll("img").forEach(img=>{
-    img.onclick = ()=>{
-      const overlay=document.createElement("div");
-      overlay.className="lightbox-overlay";
-      overlay.innerHTML = `<img src="${img.src}" alt="">`;
-      overlay.onclick = ()=> overlay.remove();
-      document.body.appendChild(overlay);
-    };
-  });
   if(mode==="login") document.getElementById("forgotPass").onclick = ()=> renderForgotPassword();
   wirePasswordToggle("aPass");
   ["aName","aEmail","aPass"].forEach(id=>{
