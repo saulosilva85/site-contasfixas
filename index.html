@@ -389,7 +389,7 @@ function renderSetNewPassword(){
 }
 
 function renderProfileMenu(u){
-  const displayName = firstName((u && u.name) || (authUser && authUser.email) || "");
+  const displayName = ((u && u.name) || (authUser && authUser.email) || "").trim();
   const avatar = u && u.avatar_url;
   who(`<div class="profile">
     <button class="profile-btn" id="profileBtn">
@@ -403,7 +403,7 @@ function renderProfileMenu(u){
       <hr>
       <button id="logout">Sair</button>
       <hr>
-      <button id="openDeleteAccount" style="color:var(--danger)">Excluir conta</button>
+      <button id="openDeleteAccount" style="color:var(--danger)">Encerrar conta</button>
     </div>
   </div>`);
   const btn=document.getElementById("profileBtn"), menu=document.getElementById("profileMenu");
@@ -510,13 +510,13 @@ function openDeleteAccountModal(){
   const overlay=document.createElement("div");
   overlay.className="modal-overlay";
   overlay.innerHTML = `<div class="modal-card">
-    <h2 style="font-style:normal;color:var(--danger);font-size:18px;margin-top:0">Excluir conta</h2>
+    <h2 style="font-style:normal;color:var(--danger);font-size:18px;margin-top:0">Encerrar conta</h2>
     <p class="muted" style="margin-top:0">Essa ação não pode ser desfeita. Todas as suas despesas e meses salvos serão apagados, e você vai precisar contratar o plano novamente para ter acesso.</p>
     <div id="delErr" class="err" style="display:none"></div>
     <input type="password" id="delPass" placeholder="Digite sua senha para confirmar">
     <div style="display:flex;gap:10px;margin-top:6px">
       <button class="ghost" id="delCancel" style="flex:1">Cancelar</button>
-      <button class="btn" id="delConfirm" style="flex:1;background:var(--danger)">Excluir conta</button>
+      <button class="btn" id="delConfirm" style="flex:1;background:var(--danger)">Encerrar conta</button>
     </div>
   </div>`;
   document.body.appendChild(overlay);
