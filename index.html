@@ -107,6 +107,23 @@ textarea{padding:11px;border:1px solid var(--line);border-radius:3px;background:
 .pwd-wrap input[type=password],.pwd-wrap input[type=text]{margin-bottom:0;padding-right:42px;}
 .pwd-toggle{position:absolute;right:8px;top:50%;transform:translateY(-50%);background:none;border:none;cursor:pointer;color:var(--muted);padding:6px;line-height:1;display:flex;align-items:center;}
 .pwd-toggle:hover{color:var(--text);}
+.mpicker{position:relative;display:inline-block;}
+.mpicker-btn{display:flex;align-items:center;justify-content:space-between;gap:10px;width:100%;min-width:200px;padding:11px;border:1px solid var(--line);border-radius:3px;background:var(--panel);color:var(--text);font-size:14px;font-family:"Inter";cursor:pointer;text-align:left;}
+.mpicker-btn:hover{border-color:var(--brass);}
+.mpicker-btn .mpicker-caret{color:var(--muted);font-size:11px;}
+.mpicker-panel{position:absolute;z-index:40;top:calc(100% + 6px);left:0;background:var(--panel);border:1px solid var(--line);border-radius:4px;box-shadow:0 10px 28px rgba(0,0,0,.2);padding:12px;width:230px;display:none;}
+.mpicker-panel.open{display:block;}
+.mpicker-yearrow{display:flex;align-items:center;justify-content:space-between;margin-bottom:10px;}
+.mpicker-yearrow button{background:none;border:none;color:var(--muted);font-size:16px;cursor:pointer;padding:4px 8px;line-height:1;}
+.mpicker-yearrow button:hover{color:var(--brass);}
+.mpicker-yearrow span{font-family:"Fraunces",serif;font-size:15px;color:var(--text);}
+.mpicker-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:6px;margin-bottom:10px;}
+.mpicker-grid button{background:none;border:1px solid var(--line);border-radius:3px;color:var(--text);font-size:13px;padding:7px 0;cursor:pointer;font-family:"Inter";text-transform:capitalize;}
+.mpicker-grid button:hover{border-color:var(--brass);}
+.mpicker-grid button.sel{background:var(--brass);border-color:var(--brass);color:#fff8ee;}
+.mpicker-foot{display:flex;justify-content:space-between;border-top:1px solid var(--line);padding-top:8px;}
+.mpicker-foot button{background:none;border:none;color:var(--brass-deep);font-size:12px;cursor:pointer;padding:2px;}
+.mpicker-foot button:hover{text-decoration:underline;}
 </style>
 </head>
 <body>
@@ -136,6 +153,82 @@ function parseBRL(s){
 }
 function formatAmount(v){ return (v||0).toLocaleString("pt-BR",{minimumFractionDigits:2,maximumFractionDigits:2}); }
 function shiftMonth(k,delta){ let [y,m]=k.split("-").map(Number); m+=delta; while(m<1){m+=12;y--;} while(m>12){m-=12;y++;} return y+"-"+String(m).padStart(2,"0"); }
+
+// ===== Seletor de mês próprio (substitui <input type="month"> nativo) =====
+// Evita o problema de gravadores de tela (ex: OBS) não capturarem o calendário
+// nativo do navegador, que em alguns casos é renderizado em camada separada do SO.
+function monthPickerHTML(id, value, label){
+  return `<div class="mpicker" data-mpicker-id="${id}">
+    <input type="hidden" id="${id}" value="${value}">
+    <button type="button" class="mpicker-btn" id="${id}_btn" aria-label="${label||'Selecionar mês'}">
+      <span id="${id}_label">${monthLabel(value)}</span>
+      <span class="mpicker-caret">▾</span>
+    </button>
+    <div class="mpicker-panel" id="${id}_panel"></div>
+  </div>`;
+}
+
+function initMonthPicker(id){
+  const hidden = document.getElementById(id);
+  const btn = document.getElementById(id+"_btn");
+  const labelEl = document.getElementById(id+"_label");
+  const panel = document.getElementById(id+"_panel");
+  if(!hidden || !btn || !panel) return;
+
+  let viewYear = Number((hidden.value||monthKey(new Date())).split("-")[0]);
+
+  function renderPanel(){
+    const [selY, selM] = hidden.value.split("-").map(Number);
+    let monthsHtml = "";
+    for(let m=1;m<=12;m++){
+      const sel = (viewYear===selY && m===selM) ? "sel" : "";
+      monthsHtml += `<button type="button" class="${sel}" data-m="${m}">${MONTH_ABBR[m-1]}</button>`;
+    }
+    panel.innerHTML = `
+      <div class="mpicker-yearrow">
+        <button type="button" id="${id}_prevY">‹</button>
+        <span>${viewYear}</span>
+        <button type="button" id="${id}_nextY">›</button>
+      </div>
+      <div class="mpicker-grid">${monthsHtml}</div>
+      <div class="mpicker-foot">
+        <button type="button" id="${id}_today">Este mês</button>
+      </div>`;
+    document.getElementById(id+"_prevY").onclick = (e)=>{ e.stopPropagation(); viewYear--; renderPanel(); };
+    document.getElementById(id+"_nextY").onclick = (e)=>{ e.stopPropagation(); viewYear++; renderPanel(); };
+    document.getElementById(id+"_today").onclick = (e)=>{ e.stopPropagation(); pick(monthKey(new Date())); };
+    panel.querySelectorAll(".mpicker-grid button").forEach(b=>{
+      b.onclick = (e)=>{ e.stopPropagation(); pick(viewYear+"-"+pad2(Number(b.dataset.m))); };
+    });
+  }
+
+  function pick(key){
+    hidden.value = key;
+    labelEl.textContent = monthLabel(key);
+    viewYear = Number(key.split("-")[0]);
+    closePanel();
+    hidden.dispatchEvent(new Event("change"));
+  }
+
+  function openPanel(){
+    document.querySelectorAll(".mpicker-panel.open").forEach(p=>{ if(p!==panel) p.classList.remove("open"); });
+    viewYear = Number((hidden.value||monthKey(new Date())).split("-")[0]);
+    renderPanel();
+    panel.classList.add("open");
+    document.addEventListener("click", outsideClick);
+  }
+  function closePanel(){
+    panel.classList.remove("open");
+    document.removeEventListener("click", outsideClick);
+  }
+  function outsideClick(e){
+    const wrap = btn.closest(".mpicker");
+    if(wrap && !wrap.contains(e.target)) closePanel();
+  }
+
+  btn.onclick = (e)=>{ e.stopPropagation(); panel.classList.contains("open") ? closePanel() : openPanel(); };
+}
+// ===== fim seletor de mês próprio =====
 function firstName(n){ n=(n||"").trim(); return n ? n.split(/\s+/)[0] : n; }
 function escapeHtml(s){
   return (s==null?"":String(s)).replace(/[&<>"']/g, c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));
@@ -647,7 +740,7 @@ async function renderDashboard(pendingValues){
   app().innerHTML = `
   <div class="block">
     <h2>mês em edição</h2>
-    <input type="month" id="monthPick" value="${curMonth}" style="max-width:220px">
+    ${monthPickerHTML("monthPick", curMonth, "mês em edição")}
   </div>
   <div class="block">
     <h2>despesas de ${monthLabel(curMonth)}</h2>
@@ -662,8 +755,8 @@ async function renderDashboard(pendingValues){
   <div class="block">
     <h2>dashboard comparativo</h2>
     <div class="dash-controls">
-      <label>Mês para análise <input type="month" id="dashAnalysis" value="${curMonth}"></label>
-      <label>Mês de comparação <input type="month" id="dashCompare" value="${shiftMonth(curMonth,-1)}"></label>
+      <label>Mês para análise ${monthPickerHTML("dashAnalysis", curMonth, "mês para análise")}</label>
+      <label>Mês de comparação ${monthPickerHTML("dashCompare", shiftMonth(curMonth,-1), "mês de comparação")}</label>
     </div>
     <div class="summary-grid" id="summaryGrid"></div>
     <div class="chartwrap"><table class="cmp-table" id="cmpTable"></table></div>
@@ -672,6 +765,9 @@ async function renderDashboard(pendingValues){
     <div class="chartwrap" id="chart"></div>
   </div>`;
 
+  initMonthPicker("monthPick");
+  initMonthPicker("dashAnalysis");
+  initMonthPicker("dashCompare");
   document.getElementById("dashAnalysis").onchange = renderCompDashboard;
   document.getElementById("dashCompare").onchange = renderCompDashboard;
   document.getElementById("monthPick").onchange = async (e)=>{ curMonth=e.target.value; await renderDashboard(); };
