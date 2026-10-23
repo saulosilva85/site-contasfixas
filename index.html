@@ -780,7 +780,7 @@ async function renderDashboard(pendingValues){
     </div>
     <div class="installment-row">
       <label><input type="checkbox" id="newCatParcelada"> Compra parcelada (ex: cartão de crédito)</label>
-      <input type="number" id="newCatParcelas" min="2" max="48" placeholder="Nº de parcelas" style="display:none">
+      <input type="number" id="newCatParcelas" min="1" max="48" placeholder="Nº de parcelas" style="display:none">
     </div>
     <button class="btn" id="save" style="margin-top:18px;width:100%">Salvar mês</button>
   </div>
@@ -813,7 +813,7 @@ async function renderDashboard(pendingValues){
     const parcelasInput = document.getElementById("newCatParcelas").value;
     const parcelas = parseInt(parcelasInput, 10);
     const payload = { user_id:authUser.id, name:v };
-    if(parcelada && parcelas>=2){
+    if(parcelada && parcelas>=1){
       payload.start_month = curMonth;
       payload.installments = parcelas;
     }
