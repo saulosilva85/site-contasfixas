@@ -51,6 +51,12 @@ main{max-width:640px;margin:0 auto;padding:28px 20px 60px;}
 .addline{display:flex;gap:10px;margin-top:16px;}
 .addline input{flex:1;padding:10px 4px;border:none;border-bottom:1px solid var(--line);background:transparent;color:var(--text);font-size:14px;}
 .addline input:focus{outline:none;border-bottom-color:var(--brass);}
+.installment-row{display:flex;align-items:center;gap:10px;margin-top:10px;flex-wrap:wrap;}
+.installment-row label{display:flex;align-items:center;gap:6px;font-size:12px;color:var(--muted);cursor:pointer;}
+.installment-row input[type=checkbox]{accent-color:var(--brass);width:14px;height:14px;cursor:pointer;}
+.installment-row input[type=number]{width:140px;padding:6px 8px;border:1px solid var(--line);border-radius:3px;background:var(--panel);color:var(--text);font-size:13px;}
+.installment-row input[type=number]:focus{outline:none;border-color:var(--brass);}
+.line .name .inst-badge{color:var(--muted);font-size:12px;margin-left:4px;}
 button.btn{background:var(--brass);color:#fff8ee;border:none;border-radius:3px;padding:11px 18px;font-size:14px;cursor:pointer;font-family:"Inter";}
 button.btn:hover{background:var(--brass-deep);}
 button.btn:disabled{opacity:.6;cursor:default;}
@@ -153,6 +159,28 @@ function parseBRL(s){
 }
 function formatAmount(v){ return (v||0).toLocaleString("pt-BR",{minimumFractionDigits:2,maximumFractionDigits:2}); }
 function shiftMonth(k,delta){ let [y,m]=k.split("-").map(Number); m+=delta; while(m<1){m+=12;y--;} while(m>12){m-=12;y++;} return y+"-"+String(m).padStart(2,"0"); }
+
+// ===== Despesas parceladas (ex: compra no cartão em várias vezes) =====
+// Categorias normais (sem parcelamento) continuam se comportando exatamente
+// como sempre: aparecem em todos os meses, para sempre. Uma categoria só
+// fica "limitada" a um intervalo de meses quando tem installments preenchido.
+function monthDiff(aKey,bKey){
+  const [ay,am]=aKey.split("-").map(Number);
+  const [by,bm]=bKey.split("-").map(Number);
+  return (by-ay)*12 + (bm-am);
+}
+function categoryActiveInMonth(c, mKey){
+  if(!c.installments || !c.start_month) return true; // comportamento padrão: sempre ativa
+  const idx = monthDiff(c.start_month, mKey);
+  return idx>=0 && idx<c.installments;
+}
+function categoryInstallmentLabel(c, mKey){
+  if(!c.installments || !c.start_month) return "";
+  const idx = monthDiff(c.start_month, mKey)+1;
+  if(idx<1 || idx>c.installments) return "";
+  return `${idx}/${c.installments}`;
+}
+// ===== fim despesas parceladas =====
 
 // ===== Seletor de mês próprio (substitui <input type="month"> nativo) =====
 // Evita o problema de gravadores de tela (ex: OBS) não capturarem o calendário
@@ -750,6 +778,10 @@ async function renderDashboard(pendingValues){
       <input type="text" id="newCat" placeholder="Adicionar despesa (ex: Streaming)">
       <button class="ghost" id="addCat">Adicionar</button>
     </div>
+    <div class="installment-row">
+      <label><input type="checkbox" id="newCatParcelada"> Compra parcelada (ex: cartão de crédito)</label>
+      <input type="number" id="newCatParcelas" min="2" max="48" placeholder="Nº de parcelas" style="display:none">
+    </div>
     <button class="btn" id="save" style="margin-top:18px;width:100%">Salvar mês</button>
   </div>
   <div class="block">
@@ -771,11 +803,22 @@ async function renderDashboard(pendingValues){
   document.getElementById("dashAnalysis").onchange = renderCompDashboard;
   document.getElementById("dashCompare").onchange = renderCompDashboard;
   document.getElementById("monthPick").onchange = async (e)=>{ curMonth=e.target.value; await renderDashboard(); };
+  document.getElementById("newCatParcelada").onchange = (e)=>{
+    document.getElementById("newCatParcelas").style.display = e.target.checked ? "" : "none";
+  };
   document.getElementById("addCat").onclick = async ()=>{
     const v=document.getElementById("newCat").value.trim();
     if(!v) return;
+    const parcelada = document.getElementById("newCatParcelada").checked;
+    const parcelasInput = document.getElementById("newCatParcelas").value;
+    const parcelas = parseInt(parcelasInput, 10);
+    const payload = { user_id:authUser.id, name:v };
+    if(parcelada && parcelas>=2){
+      payload.start_month = curMonth;
+      payload.installments = parcelas;
+    }
     const pending=getUnsavedValues();
-    await supa.from("categories").insert({ user_id:authUser.id, name:v });
+    await supa.from("categories").insert(payload);
     await loadData();
     await renderDashboard(pending);
   };
@@ -783,11 +826,13 @@ async function renderDashboard(pendingValues){
   const monthValues = entriesForMonth(curMonth);
   const rows=document.getElementById("rows");
   rows.innerHTML="";
-  categories.forEach(c=>{
+  const activeCats = categories.filter(c=>categoryActiveInMonth(c,curMonth));
+  activeCats.forEach(c=>{
     const pendingVal = pendingValues && Object.prototype.hasOwnProperty.call(pendingValues, c.id) ? pendingValues[c.id] : null;
     const displayVal = pendingVal !== null ? pendingVal : (monthValues[c.id] ? formatAmount(monthValues[c.id]) : '');
+    const instLabel = categoryInstallmentLabel(c, curMonth);
     const div=document.createElement("div"); div.className="line";
-    div.innerHTML = `<span class="name">${escapeHtml(c.name)}</span>
+    div.innerHTML = `<span class="name">${escapeHtml(c.name)}${instLabel?`<span class="inst-badge">(${instLabel})</span>`:""}</span>
       <span class="curr">R$</span>
       <input class="amount" type="text" inputmode="decimal" placeholder="0,00" data-id="${c.id}" value="${displayVal}">
       <button class="remove" data-del="${c.id}" title="Remover">×</button>`;
@@ -814,7 +859,7 @@ async function renderDashboard(pendingValues){
 
   document.getElementById("save").onclick = async ()=>{
     const btn=document.getElementById("save"); btn.disabled=true;
-    const rowsToSave = categories.map(c=>{
+    const rowsToSave = activeCats.map(c=>{
       const input = rows.querySelector(`input[data-id="${c.id}"]`);
       return { user_id:authUser.id, month_key:curMonth, category_id:c.id, amount: parseBRL(input.value) };
     });
@@ -841,7 +886,7 @@ async function renderCompDashboard(){
     <div class="sbox"><span class="slabel">Variação (%)</span><span class="sval ${cls}">${diffPct.toFixed(1)}%</span></div>`;
 
   let rows="";
-  categories.forEach(c=>{
+  categories.filter(c=>categoryActiveInMonth(c,aKey)||categoryActiveInMonth(c,cKey)).forEach(c=>{
     const av=aData[c.id]||0, cv=cData[c.id]||0, d=av-cv, dp=cv?(d/cv*100):(av>0?100:0), rc=d>0?"up":d<0?"down":"";
     rows += `<tr><td>${escapeHtml(c.name)}</td><td>${brl(av)}</td><td>${brl(cv)}</td><td class="${rc}">${brl(d)}</td><td class="${rc}">${dp.toFixed(1)}%</td></tr>`;
   });
